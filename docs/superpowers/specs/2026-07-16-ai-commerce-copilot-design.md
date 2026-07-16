@@ -108,6 +108,8 @@ User text and catalog text are untrusted data, never instructions. The system pr
 
 PostgreSQL runs in Docker Compose with a persisted local volume. Prisma Schema is the database-model source of truth and Prisma Migrate creates versioned, committed migrations. Prisma Client is configured once as a Next.js-safe singleton through the PostgreSQL driver adapter; the repository remains the only domain code allowed to query it. Development configuration uses an ignored environment file; `.env.example` documents required variables. A separate test database is migrated and truncated for integration tests.
 
+This is an unshipped local application. Migrations created during implementation need to support fresh installs and the project test databases; they do not claim to infer associations from unknown, pre-existing production conversations. Once the application has persisted user data, every schema migration must explicitly provide either a safe data backfill or a typed recovery path for records whose relationship cannot be inferred.
+
 ```mermaid
 erDiagram
   CONVERSATION ||--o{ MESSAGE : contains
