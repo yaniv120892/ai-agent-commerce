@@ -16,6 +16,7 @@ export default defineConfig({
       OPENAI_API_KEY: "test-key",
     },
     environment: "jsdom",
+    include: ["src/**/*.test.ts"],
     setupFiles: ["./tests/setup.ts"],
   },
 });
