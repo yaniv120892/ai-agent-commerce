@@ -77,6 +77,8 @@ export class CatalogResolver {
 
     const validatedPlan = parsedPlan.data;
 
+    this.validateIntentFields(validatedPlan);
+
     if (
       validatedPlan.categorySlug !== null &&
       !this.allowedCategorySlugs.has(validatedPlan.categorySlug)
@@ -84,56 +86,6 @@ export class CatalogResolver {
       throw new CatalogError(
         "INVALID_RETRIEVAL_PLAN",
         "Retrieval plan selected an unapproved category",
-      );
-    }
-
-    if (
-      validatedPlan.intent === "search" &&
-      validatedPlan.searchTerms.length === 0
-    ) {
-      throw new CatalogError(
-        "INVALID_RETRIEVAL_PLAN",
-        "Search plans require a search term",
-      );
-    }
-
-    if (
-      validatedPlan.intent === "browse_category" &&
-      validatedPlan.categorySlug === null
-    ) {
-      throw new CatalogError(
-        "INVALID_RETRIEVAL_PLAN",
-        "Category browsing plans require an approved category",
-      );
-    }
-
-    if (
-      validatedPlan.intent === "product_detail" &&
-      validatedPlan.referencedProductIds.length !== 1
-    ) {
-      throw new CatalogError(
-        "INVALID_RETRIEVAL_PLAN",
-        "Product detail plans require one product reference",
-      );
-    }
-
-    if (
-      validatedPlan.intent === "compare" &&
-      validatedPlan.referencedProductIds.length !== 2
-    ) {
-      throw new CatalogError(
-        "INVALID_RETRIEVAL_PLAN",
-        "Comparison plans require two product references",
-      );
-    }
-
-    if (
-      ["clarify", "unsupported"].includes(validatedPlan.intent) &&
-      validatedPlan.referencedProductIds.length > 0
-    ) {
-      throw new CatalogError(
-        "INVALID_RETRIEVAL_PLAN",
-        "Non-retrieval plans cannot reference catalog products",
       );
     }
 
@@ -156,30 +108,102 @@ export class CatalogResolver {
   private async retrieveProducts(
     plan: RetrievalPlan,
   ): Promise<CatalogProduct[]> {
-    if (plan.referencedProductIds.length > 0) {
-      return Promise.all(
-        plan.referencedProductIds.map((productId) =>
-          this.catalogClient.getProduct(productId),
-        ),
-      );
-    }
+    switch (plan.intent) {
+      case "search":
+        return this.catalogClient.searchProducts(plan.searchTerms.join(" "));
+      case "browse_category":
+        if (plan.categorySlug !== null) {
+          return this.catalogClient.listCategoryProducts(plan.categorySlug);
+        }
 
-    if (plan.searchTerms.length > 0) {
-      return this.catalogClient.searchProducts(plan.searchTerms.join(" "));
+        return this.catalogClient.listProducts();
+      case "product_detail":
+      case "compare":
+        return Promise.all(
+          plan.referencedProductIds.map((productId) =>
+            this.catalogClient.getProduct(productId),
+          ),
+        );
+      case "clarify":
+      case "unsupported":
+        return [];
     }
+  }
 
-    if (plan.categorySlug !== null) {
-      return this.catalogClient.listCategoryProducts(plan.categorySlug);
+  private validateIntentFields(plan: RetrievalPlan): void {
+    switch (plan.intent) {
+      case "search":
+        if (
+          plan.searchTerms.length === 0 ||
+          plan.referencedProductIds.length > 0
+        ) {
+          this.throwInvalidPlan(
+            "Search plans require text and no product references",
+          );
+        }
+        return;
+      case "browse_category":
+        if (
+          plan.searchTerms.length > 0 ||
+          plan.referencedProductIds.length > 0
+        ) {
+          this.throwInvalidPlan(
+            "Category browsing plans cannot contain text or product references",
+          );
+        }
+        return;
+      case "product_detail":
+        if (
+          plan.categorySlug !== null ||
+          plan.searchTerms.length > 0 ||
+          plan.referencedProductIds.length !== 1 ||
+          this.hasFilters(plan)
+        ) {
+          this.throwInvalidPlan(
+            "Product detail plans require one product reference only",
+          );
+        }
+        return;
+      case "compare":
+        if (
+          plan.categorySlug !== null ||
+          plan.searchTerms.length > 0 ||
+          plan.referencedProductIds.length !== 2 ||
+          this.hasFilters(plan)
+        ) {
+          this.throwInvalidPlan(
+            "Comparison plans require two product references only",
+          );
+        }
+        return;
+      case "clarify":
+      case "unsupported":
+        if (
+          plan.categorySlug !== null ||
+          plan.searchTerms.length > 0 ||
+          plan.referencedProductIds.length > 0 ||
+          this.hasFilters(plan) ||
+          plan.sort !== "relevance"
+        ) {
+          this.throwInvalidPlan(
+            "Non-retrieval plans cannot contain catalog constraints",
+          );
+        }
+        return;
     }
+  }
 
-    if (plan.intent === "clarify" || plan.intent === "unsupported") {
-      throw new CatalogError(
-        "INVALID_RETRIEVAL_PLAN",
-        "Non-retrieval plans cannot resolve catalog products",
-      );
-    }
+  private hasFilters(plan: RetrievalPlan): boolean {
+    return (
+      plan.maxPrice !== null ||
+      plan.minRating !== null ||
+      plan.inStock !== null ||
+      plan.sort !== "relevance"
+    );
+  }
 
-    return this.catalogClient.listProducts();
+  private throwInvalidPlan(message: string): never {
+    throw new CatalogError("INVALID_RETRIEVAL_PLAN", message);
   }
 
   private rankProducts(
