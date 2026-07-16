@@ -19,6 +19,7 @@
 - Build non-streaming v1 replies. Do not introduce cross-conversation memory, card freshness checks, auth, cart, checkout, or deletion controls.
 - Treat product-card snapshots as historical recommendations. Do not overwrite historic cards with live catalog values.
 - Use `prisma/schema.prisma` as the database-model source of truth, commit every Prisma Migrate migration, and access Prisma Client only through `ConversationRepository`.
+- Treat this as an unshipped local application: current migrations must support fresh installs and test databases. After user data exists, every schema migration must include a safe data backfill or a typed recovery path for non-inferable legacy relationships.
 - Run `npm run prettier`, `npm run lint`, `npm run build`, and `npm run test` before every commit after Task 1.
 
 ---
