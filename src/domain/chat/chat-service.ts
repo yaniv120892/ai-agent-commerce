@@ -159,7 +159,7 @@ export class ChatService {
     return this.generateReply(
       input.conversationId,
       assistantMessage,
-      content,
+      appendedReply.userMessageContent,
       messageContext,
     );
   }

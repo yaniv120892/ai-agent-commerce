@@ -38,6 +38,11 @@ type MessageWithProductCards = Prisma.MessageGetPayload<{
   include: typeof productCardInclude;
 }>;
 
+type RequestLinkedAssistantReply = {
+  assistantMessage: MessageWithProductCards;
+  userMessageContent: string;
+};
+
 type CreateConversationInput = {
   title: string;
   content: string;
@@ -182,6 +187,7 @@ export class ConversationRepository {
             productCards: [],
           }),
           state: "created",
+          userMessageContent: userMessage.content,
         };
       });
     } catch (error) {
@@ -278,7 +284,7 @@ export class ConversationRepository {
   private async findAssistantReplyForRequest(
     prisma: PrismaClient | Prisma.TransactionClient,
     input: AppendMessageInput,
-  ): Promise<MessageWithProductCards | null> {
+  ): Promise<RequestLinkedAssistantReply | null> {
     const userMessage = await prisma.message.findUnique({
       include: userMessageWithReplyInclude,
       where: {
@@ -289,17 +295,27 @@ export class ConversationRepository {
       },
     });
 
-    return userMessage?.assistantReply ?? null;
+    if (!userMessage?.assistantReply) {
+      return null;
+    }
+
+    return {
+      assistantMessage: userMessage.assistantReply,
+      userMessageContent: userMessage.content,
+    };
   }
 
   private async resolveExistingAssistantReply(
     input: AppendMessageInput,
-    assistantMessage: MessageWithProductCards,
+    requestLinkedReply: RequestLinkedAssistantReply,
   ): Promise<AppendedAssistantReply> {
+    const { assistantMessage, userMessageContent } = requestLinkedReply;
+
     if (assistantMessage.status !== "failed") {
       return {
         assistantMessage: this.mapMessage(assistantMessage),
         state: "existing",
+        userMessageContent,
       };
     }
 
@@ -334,8 +350,9 @@ export class ConversationRepository {
       }
 
       return {
-        assistantMessage: this.mapMessage(assistantMessage),
+        assistantMessage: this.mapMessage(assistantMessage.assistantMessage),
         state: updatedMessage.count === 1 ? "retried" : "existing",
+        userMessageContent: assistantMessage.userMessageContent,
       };
     });
   }

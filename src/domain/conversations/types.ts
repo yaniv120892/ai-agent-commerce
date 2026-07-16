@@ -31,4 +31,5 @@ export type PersistedConversation = {
 export type AppendedAssistantReply = {
   assistantMessage: PersistedMessage;
   state: "created" | "existing" | "retried";
+  userMessageContent: string;
 };

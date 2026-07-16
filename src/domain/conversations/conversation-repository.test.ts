@@ -3,6 +3,51 @@ import { describe, expect, it, vi } from "vitest";
 import { ConversationRepository } from "./conversation-repository";
 
 describe("ConversationRepository", () => {
+  it("returns the persisted user content when retrying a failed request", async () => {
+    const failedAssistantMessage = {
+      content: "",
+      createdAt: new Date("2026-07-16T10:00:00.000Z"),
+      id: "assistant-message-id",
+      productCards: [],
+      role: "assistant",
+      status: "failed",
+    };
+    const message = {
+      findUnique: vi
+        .fn()
+        .mockResolvedValueOnce({
+          assistantReply: failedAssistantMessage,
+          content: "Original saved request",
+        })
+        .mockResolvedValueOnce({
+          assistantReply: {
+            ...failedAssistantMessage,
+            status: "pending",
+          },
+          content: "Original saved request",
+        }),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+    };
+    const prisma = {
+      $transaction: vi
+        .fn()
+        .mockImplementation(async (callback) => callback({ message })),
+      message,
+    };
+    const repository = new ConversationRepository(prisma as never);
+
+    const result = await repository.appendMessageWithPendingReply({
+      clientRequestId: "request-id",
+      content: "Changed retry body",
+      conversationId: "conversation-id",
+    });
+
+    expect(result).toMatchObject({
+      state: "retried",
+      userMessageContent: "Original saved request",
+    });
+  });
+
   it("identifies an existing pending request-linked assistant reply without changing it", async () => {
     const pendingAssistantMessage = {
       content: "",
