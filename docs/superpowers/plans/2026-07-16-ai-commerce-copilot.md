@@ -60,7 +60,7 @@
 - Test: `src/lib/env.test.ts`
 
 **Interfaces:**
-- Produces `environment` from `src/lib/env.ts`, containing `databaseUrl`, `openAiApiKey`, `dummyJsonBaseUrl`, `dummyJsonTimeoutMs`, and `port`.
+- Produces `environment` from `src/lib/env.ts`, containing `databaseUrl`, `openAiApiKey`, `dummyJsonBaseUrl`, and `dummyJsonTimeoutMs`.
 - Produces the `prisma: PrismaClient` singleton for repository construction.
 
 - [ ] **Step 1: Initialize the Next.js project and dependencies**
@@ -562,7 +562,7 @@ Expected: FAIL until the test server, fake-dependency seam, and UI are complete.
 
 - [ ] **Step 3: Implement the test-only dependency seam**
 
-Create a server-side dependency factory that selects deterministic fake `ModelClient` and `CatalogClient` implementations only when `E2E_MODE=true` and Next.js is running in development mode. Production configuration must reject `E2E_MODE=true`. The Playwright web server starts `npm run dev` with that explicit flag; the fakes return fixture plans/products, enabling E2E tests to assert UI behavior without real OpenAI or DummyJSON calls.
+Create a server-side dependency factory that selects deterministic fake `ModelClient` and `CatalogClient` implementations only when `E2E_MODE=true` and Next.js is running in development mode. Production configuration must reject `E2E_MODE=true`. The Playwright web server starts `npm run dev` with `E2E_MODE=true` and `OPENAI_API_KEY=test-key`; the fakes return fixture plans/products, enabling E2E tests to assert UI behavior without real OpenAI or DummyJSON calls.
 
 - [ ] **Step 4: Add offline evaluation**
 
