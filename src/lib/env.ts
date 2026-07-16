@@ -1,3 +1,5 @@
+import "server-only";
+
 import { z } from "zod";
 
 import type { Environment } from "./types";
@@ -5,7 +7,9 @@ import type { Environment } from "./types";
 const environmentSchema = z.object({
   DATABASE_URL: z.url(),
   OPENAI_API_KEY: z.string().min(1),
-  DUMMYJSON_BASE_URL: z.url().default("https://dummyjson.com"),
+  DUMMYJSON_BASE_URL: z
+    .literal("https://dummyjson.com")
+    .default("https://dummyjson.com"),
   DUMMYJSON_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
 });
 
