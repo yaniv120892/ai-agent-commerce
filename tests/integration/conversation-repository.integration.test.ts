@@ -227,6 +227,49 @@ describe("ConversationRepository", () => {
     });
   });
 
+  it("allows exactly one concurrent failed-retry caller to resume generation", async () => {
+    const conversation = await prisma.conversation.create({
+      data: {
+        title: "Concurrent failed retry test",
+      },
+    });
+    const request = {
+      clientRequestId: "00000000-0000-4000-8000-000000000009",
+      content: "Show me mice.",
+      conversationId: conversation.id,
+    };
+    const firstReply = await repository.appendMessageWithPendingReply(request);
+
+    await repository.failAssistantMessage({
+      conversationId: conversation.id,
+      messageId: firstReply.assistantMessage.id,
+    });
+
+    const retryReplies = await Promise.all([
+      repository.appendMessageWithPendingReply(request),
+      repository.appendMessageWithPendingReply(request),
+    ]);
+    const messages = await prisma.message.findMany({
+      where: {
+        conversationId: conversation.id,
+      },
+    });
+
+    expect(retryReplies.map((reply) => reply.state).sort()).toEqual([
+      "existing",
+      "retried",
+    ]);
+    expect(retryReplies.map((reply) => reply.assistantMessage.id)).toEqual([
+      firstReply.assistantMessage.id,
+      firstReply.assistantMessage.id,
+    ]);
+    expect(messages).toHaveLength(2);
+    expect(messages[1]).toMatchObject({
+      id: firstReply.assistantMessage.id,
+      status: "pending",
+    });
+  });
+
   it("orders initial user and assistant messages by stored sequence", async () => {
     const conversation = await prisma.conversation.create({
       data: {

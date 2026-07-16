@@ -72,10 +72,13 @@ function createDependencies() {
     status: "pending",
   });
   const conversationRepository = {
-    appendMessageWithPendingReply: vi.fn().mockResolvedValue({
-      assistantMessage,
-      state: "created",
-    }),
+    appendMessageWithPendingReply: vi
+      .fn()
+      .mockImplementation(async (input) => ({
+        assistantMessage,
+        state: "created",
+        userMessageContent: input.content,
+      })),
     completeAssistantMessage: vi.fn().mockImplementation(async (input) => ({
       ...assistantMessage,
       content: input.content,
@@ -277,6 +280,7 @@ describe("ChatService", () => {
     conversationRepository.appendMessageWithPendingReply.mockResolvedValue({
       assistantMessage: completedAssistantMessage,
       state: "existing",
+      userMessageContent: "Find me a phone",
     });
     const service = new ChatService(
       conversationRepository,
@@ -312,6 +316,7 @@ describe("ChatService", () => {
     conversationRepository.appendMessageWithPendingReply.mockResolvedValue({
       assistantMessage,
       state: "existing",
+      userMessageContent: "Find me a phone",
     });
     const service = new ChatService(
       conversationRepository,
@@ -345,6 +350,7 @@ describe("ChatService", () => {
     conversationRepository.appendMessageWithPendingReply.mockResolvedValue({
       assistantMessage,
       state: "retried",
+      userMessageContent: "Find me a phone",
     });
     const service = new ChatService(
       conversationRepository,
@@ -366,6 +372,39 @@ describe("ChatService", () => {
       conversationRepository.completeAssistantMessage,
     ).toHaveBeenCalledWith(
       expect.objectContaining({ messageId: "assistant-message-id" }),
+    );
+  });
+
+  it("uses persisted request content instead of a changed retry body", async () => {
+    const {
+      assistantMessage,
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+    } = createDependencies();
+    conversationRepository.appendMessageWithPendingReply.mockResolvedValue({
+      assistantMessage,
+      state: "retried",
+      userMessageContent: "Original saved request",
+    });
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      ["smartphones"],
+    );
+
+    await service.appendMessage({
+      clientRequestId: "request-id",
+      content: "Changed retry body",
+      conversationId: "conversation-id",
+    });
+
+    expect(modelClient.createRetrievalPlan).toHaveBeenCalledWith(
+      expect.objectContaining({ userMessage: "Original saved request" }),
+    );
+    expect(modelClient.createGroundedReply).toHaveBeenCalledWith(
+      expect.objectContaining({ userMessage: "Original saved request" }),
     );
   });
 
