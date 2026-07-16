@@ -18,10 +18,16 @@ const conversationInclude = {
   messages: {
     include: productCardInclude,
     orderBy: {
-      createdAt: "asc",
+      sequence: "asc",
     },
   },
 } as const satisfies Prisma.ConversationInclude;
+
+const userMessageWithReplyInclude = {
+  assistantReply: {
+    include: productCardInclude,
+  },
+} as const satisfies Prisma.MessageInclude;
 
 type ConversationWithMessages = Prisma.ConversationGetPayload<{
   include: typeof conversationInclude;
@@ -99,6 +105,7 @@ export class ConversationRepository {
           content: input.content,
           conversationId: conversation.id,
           role: "user",
+          sequence: 0,
           status: "complete",
         },
       });
@@ -106,7 +113,9 @@ export class ConversationRepository {
         data: {
           content: "",
           conversationId: conversation.id,
+          replyToMessageId: userMessage.id,
           role: "assistant",
+          sequence: 1,
           status: "pending",
         },
       });
@@ -127,51 +136,60 @@ export class ConversationRepository {
   public async appendMessageWithPendingReply(
     input: AppendMessageInput,
   ): Promise<PersistedMessage> {
-    const existingUserMessage = await this.prisma.message.findUnique({
-      where: {
-        conversationId_clientRequestId: {
-          clientRequestId: input.clientRequestId,
-          conversationId: input.conversationId,
-        },
-      },
-    });
+    const existingAssistantMessage = await this.findAssistantReplyForRequest(
+      this.prisma,
+      input,
+    );
 
-    if (existingUserMessage) {
-      const existingAssistantMessage = await this.findPendingOrFailedAssistant(
-        this.prisma,
-        input.conversationId,
-      );
-
-      if (!existingAssistantMessage) {
-        throw new Error(
-          "No pending or failed assistant message exists for request",
-        );
-      }
-
+    if (existingAssistantMessage) {
       return this.mapMessage(existingAssistantMessage);
     }
 
-    return this.prisma.$transaction(async (transaction) => {
-      await transaction.message.create({
-        data: {
-          clientRequestId: input.clientRequestId,
-          content: input.content,
-          conversationId: input.conversationId,
-          role: "user",
-          status: "complete",
-        },
-      });
-      const assistantMessage = await transaction.message.create({
-        data: {
-          content: "",
-          conversationId: input.conversationId,
-          role: "assistant",
-          status: "pending",
-        },
-      });
+    try {
+      return await this.prisma.$transaction(async (transaction) => {
+        const sequence = await this.nextMessageSequence(
+          transaction,
+          input.conversationId,
+        );
+        const userMessage = await transaction.message.create({
+          data: {
+            clientRequestId: input.clientRequestId,
+            content: input.content,
+            conversationId: input.conversationId,
+            role: "user",
+            sequence,
+            status: "complete",
+          },
+        });
+        const assistantMessage = await transaction.message.create({
+          data: {
+            content: "",
+            conversationId: input.conversationId,
+            replyToMessageId: userMessage.id,
+            role: "assistant",
+            sequence: sequence + 1,
+            status: "pending",
+          },
+        });
 
-      return this.mapMessage({ ...assistantMessage, productCards: [] });
-    });
+        return this.mapMessage({ ...assistantMessage, productCards: [] });
+      });
+    } catch (error) {
+      if (!this.isUniqueConstraintError(error)) {
+        throw error;
+      }
+
+      const retriedAssistantMessage = await this.findAssistantReplyForRequest(
+        this.prisma,
+        input,
+      );
+
+      if (!retriedAssistantMessage) {
+        throw error;
+      }
+
+      return this.mapMessage(retriedAssistantMessage);
+    }
   }
 
   public async completeAssistantMessage(
@@ -247,23 +265,46 @@ export class ConversationRepository {
     });
   }
 
-  private async findPendingOrFailedAssistant(
+  private async findAssistantReplyForRequest(
     prisma: PrismaClient | Prisma.TransactionClient,
-    conversationId: string,
+    input: AppendMessageInput,
   ): Promise<MessageWithProductCards | null> {
-    return prisma.message.findFirst({
-      include: productCardInclude,
-      orderBy: {
-        createdAt: "desc",
-      },
+    const userMessage = await prisma.message.findUnique({
+      include: userMessageWithReplyInclude,
       where: {
-        conversationId,
-        role: "assistant",
-        status: {
-          in: ["pending", "failed"],
+        conversationId_clientRequestId: {
+          clientRequestId: input.clientRequestId,
+          conversationId: input.conversationId,
         },
       },
     });
+
+    return userMessage?.assistantReply ?? null;
+  }
+
+  private async nextMessageSequence(
+    prisma: Prisma.TransactionClient,
+    conversationId: string,
+  ): Promise<number> {
+    const lastMessage = await prisma.message.findFirst({
+      orderBy: {
+        sequence: "desc",
+      },
+      where: {
+        conversationId,
+      },
+    });
+
+    return (lastMessage?.sequence ?? -1) + 1;
+  }
+
+  private isUniqueConstraintError(error: unknown): boolean {
+    return (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "P2002"
+    );
   }
 
   private mapConversation(

@@ -113,4 +113,125 @@ describe("ConversationRepository", () => {
       ),
     ).toHaveLength(1);
   });
+
+  it("returns the assistant reply associated with the retried request", async () => {
+    const conversation = await prisma.conversation.create({
+      data: {
+        title: "Request association test",
+      },
+    });
+    const firstRequest = {
+      clientRequestId: "00000000-0000-4000-8000-000000000003",
+      content: "Show me laptops.",
+      conversationId: conversation.id,
+    };
+    const secondRequest = {
+      clientRequestId: "00000000-0000-4000-8000-000000000004",
+      content: "Show me cameras.",
+      conversationId: conversation.id,
+    };
+
+    const firstAssistantMessage =
+      await repository.appendMessageWithPendingReply(firstRequest);
+    const secondAssistantMessage =
+      await repository.appendMessageWithPendingReply(secondRequest);
+
+    await prisma.message.update({
+      data: {
+        createdAt: new Date("2030-07-16T10:00:01.000Z"),
+      },
+      where: {
+        id: secondAssistantMessage.id,
+      },
+    });
+
+    const retriedAssistantMessage =
+      await repository.appendMessageWithPendingReply(firstRequest);
+
+    expect(retriedAssistantMessage.id).toBe(firstAssistantMessage.id);
+  });
+
+  it("returns one assistant reply when concurrent retries use one request ID", async () => {
+    const conversation = await prisma.conversation.create({
+      data: {
+        title: "Concurrent retry test",
+      },
+    });
+    const request = {
+      clientRequestId: "00000000-0000-4000-8000-000000000005",
+      content: "Show me monitors.",
+      conversationId: conversation.id,
+    };
+
+    const [firstAssistantMessage, secondAssistantMessage] = await Promise.all([
+      repository.appendMessageWithPendingReply(request),
+      repository.appendMessageWithPendingReply(request),
+    ]);
+    const messages = await prisma.message.findMany({
+      where: {
+        conversationId: conversation.id,
+      },
+    });
+
+    expect(secondAssistantMessage.id).toBe(firstAssistantMessage.id);
+    expect(messages).toHaveLength(2);
+  });
+
+  it("orders initial user and assistant messages by stored sequence", async () => {
+    const conversation = await prisma.conversation.create({
+      data: {
+        title: "Sequence test",
+      },
+    });
+    const timestamp = new Date("2026-07-16T10:00:00.000Z");
+
+    await prisma.$executeRaw`
+      INSERT INTO messages (
+        id,
+        conversation_id,
+        role,
+        content,
+        status,
+        created_at,
+        sequence
+      )
+      VALUES (
+        '00000000-0000-4000-8000-000000000007'::uuid,
+        ${conversation.id}::uuid,
+        'assistant'::"MessageRole",
+        '',
+        'pending'::"MessageStatus",
+        ${timestamp},
+        1
+      )
+    `;
+    await prisma.$executeRaw`
+      INSERT INTO messages (
+        id,
+        conversation_id,
+        role,
+        content,
+        status,
+        created_at,
+        sequence
+      )
+      VALUES (
+        '00000000-0000-4000-8000-000000000006'::uuid,
+        ${conversation.id}::uuid,
+        'user'::"MessageRole",
+        'Initial question',
+        'complete'::"MessageStatus",
+        ${timestamp},
+        0
+      )
+    `;
+
+    const resumedConversation = await repository.getConversation(
+      conversation.id,
+    );
+
+    expect(
+      resumedConversation?.messages.map((message) => message.role),
+    ).toEqual(["user", "assistant"]);
+  });
 });
