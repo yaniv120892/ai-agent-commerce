@@ -80,6 +80,7 @@ type RetrievalPlan = {
   inStock: boolean | null;
   sort: "relevance" | "price_asc" | "price_desc" | "rating_desc";
   referencedProductIds: number[];
+  assistantMessage: string | null;
 };
 ```
 
