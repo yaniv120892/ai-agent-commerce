@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 
 import type {
+  AppendedAssistantReply,
   PersistedConversation,
   PersistedMessage,
   ProductCardSnapshot,
@@ -135,14 +136,17 @@ export class ConversationRepository {
 
   public async appendMessageWithPendingReply(
     input: AppendMessageInput,
-  ): Promise<PersistedMessage> {
+  ): Promise<AppendedAssistantReply> {
     const existingAssistantMessage = await this.findAssistantReplyForRequest(
       this.prisma,
       input,
     );
 
     if (existingAssistantMessage) {
-      return this.mapMessage(existingAssistantMessage);
+      return this.resolveExistingAssistantReply(
+        input,
+        existingAssistantMessage,
+      );
     }
 
     try {
@@ -172,7 +176,13 @@ export class ConversationRepository {
           },
         });
 
-        return this.mapMessage({ ...assistantMessage, productCards: [] });
+        return {
+          assistantMessage: this.mapMessage({
+            ...assistantMessage,
+            productCards: [],
+          }),
+          state: "created",
+        };
       });
     } catch (error) {
       if (!this.isUniqueConstraintError(error)) {
@@ -188,7 +198,7 @@ export class ConversationRepository {
         throw error;
       }
 
-      return this.mapMessage(retriedAssistantMessage);
+      return this.resolveExistingAssistantReply(input, retriedAssistantMessage);
     }
   }
 
@@ -280,6 +290,54 @@ export class ConversationRepository {
     });
 
     return userMessage?.assistantReply ?? null;
+  }
+
+  private async resolveExistingAssistantReply(
+    input: AppendMessageInput,
+    assistantMessage: MessageWithProductCards,
+  ): Promise<AppendedAssistantReply> {
+    if (assistantMessage.status !== "failed") {
+      return {
+        assistantMessage: this.mapMessage(assistantMessage),
+        state: "existing",
+      };
+    }
+
+    return this.retryFailedAssistantReply(input, assistantMessage.id);
+  }
+
+  private async retryFailedAssistantReply(
+    input: AppendMessageInput,
+    assistantMessageId: string,
+  ): Promise<AppendedAssistantReply> {
+    return this.prisma.$transaction(async (transaction) => {
+      const updatedMessage = await transaction.message.updateMany({
+        data: {
+          content: "",
+          status: "pending",
+        },
+        where: {
+          conversationId: input.conversationId,
+          id: assistantMessageId,
+          role: "assistant",
+          status: "failed",
+        },
+      });
+
+      const assistantMessage = await this.findAssistantReplyForRequest(
+        transaction,
+        input,
+      );
+
+      if (!assistantMessage) {
+        throw new Error("Request-linked assistant message was not found");
+      }
+
+      return {
+        assistantMessage: this.mapMessage(assistantMessage),
+        state: updatedMessage.count === 1 ? "retried" : "existing",
+      };
+    });
   }
 
   private async nextMessageSequence(
