@@ -2,6 +2,7 @@ import type { CatalogResolver } from "../catalog/catalog-resolver";
 import { CatalogError } from "../catalog/types";
 import type { ConversationRepository } from "../conversations/conversation-repository";
 import type {
+  AppendedAssistantReply,
   PersistedConversation,
   PersistedMessage,
   ProductCardSnapshot,
@@ -128,10 +129,10 @@ export class ChatService {
     }
 
     const messageContext = this.createMessageContext(conversation.messages);
-    let assistantMessage: PersistedMessage;
+    let appendedReply: AppendedAssistantReply;
 
     try {
-      assistantMessage =
+      appendedReply =
         await this.conversationRepository.appendMessageWithPendingReply({
           clientRequestId: input.clientRequestId,
           content,
@@ -146,12 +147,13 @@ export class ChatService {
       );
     }
 
-    if (assistantMessage.status === "complete") {
-      return {
+    const { assistantMessage } = appendedReply;
+
+    if (appendedReply.state === "existing") {
+      return this.returnExistingAssistantReply(
+        input.conversationId,
         assistantMessage,
-        conversationId: input.conversationId,
-        status: "complete",
-      };
+      );
     }
 
     return this.generateReply(
@@ -248,6 +250,34 @@ export class ChatService {
       assistantMessage,
       content,
       productCards,
+    );
+  }
+
+  private returnExistingAssistantReply(
+    conversationId: string,
+    assistantMessage: PersistedMessage,
+  ): ChatResponse {
+    if (assistantMessage.status === "complete") {
+      return {
+        assistantMessage,
+        conversationId,
+        status: "complete",
+      };
+    }
+
+    if (assistantMessage.status === "pending") {
+      return {
+        assistantMessage,
+        conversationId,
+        status: "pending",
+      };
+    }
+
+    return this.createErrorResponse(
+      "MODEL_UNAVAILABLE",
+      "The previous assistant request failed. Please retry.",
+      conversationId,
+      assistantMessage,
     );
   }
 

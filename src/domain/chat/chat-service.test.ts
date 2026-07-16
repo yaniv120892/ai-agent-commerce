@@ -72,7 +72,10 @@ function createDependencies() {
     status: "pending",
   });
   const conversationRepository = {
-    appendMessageWithPendingReply: vi.fn().mockResolvedValue(assistantMessage),
+    appendMessageWithPendingReply: vi.fn().mockResolvedValue({
+      assistantMessage,
+      state: "created",
+    }),
     completeAssistantMessage: vi.fn().mockImplementation(async (input) => ({
       ...assistantMessage,
       content: input.content,
@@ -271,9 +274,10 @@ describe("ChatService", () => {
       productCards,
       status: "complete" as const,
     };
-    conversationRepository.appendMessageWithPendingReply.mockResolvedValue(
-      completedAssistantMessage,
-    );
+    conversationRepository.appendMessageWithPendingReply.mockResolvedValue({
+      assistantMessage: completedAssistantMessage,
+      state: "existing",
+    });
     const service = new ChatService(
       conversationRepository,
       catalogResolver,
@@ -296,6 +300,73 @@ describe("ChatService", () => {
     expect(
       conversationRepository.completeAssistantMessage,
     ).not.toHaveBeenCalled();
+  });
+
+  it("returns an existing pending request reply without model or catalog work", async () => {
+    const {
+      assistantMessage,
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+    } = createDependencies();
+    conversationRepository.appendMessageWithPendingReply.mockResolvedValue({
+      assistantMessage,
+      state: "existing",
+    });
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      ["smartphones"],
+    );
+
+    const response = await service.appendMessage({
+      clientRequestId: "request-id",
+      content: "Find me a phone",
+      conversationId: "conversation-id",
+    });
+
+    expect(response).toEqual({
+      assistantMessage,
+      conversationId: "conversation-id",
+      status: "pending",
+    });
+    expect(modelClient.createRetrievalPlan).not.toHaveBeenCalled();
+    expect(catalogResolver.resolve).not.toHaveBeenCalled();
+  });
+
+  it("processes a failed request after the repository atomically returns it to pending", async () => {
+    const {
+      assistantMessage,
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+    } = createDependencies();
+    conversationRepository.appendMessageWithPendingReply.mockResolvedValue({
+      assistantMessage,
+      state: "retried",
+    });
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      ["smartphones"],
+    );
+
+    const response = await service.appendMessage({
+      clientRequestId: "request-id",
+      content: "Find me a phone",
+      conversationId: "conversation-id",
+    });
+
+    expect(response).toMatchObject({ status: "complete" });
+    expect(modelClient.createRetrievalPlan).toHaveBeenCalledOnce();
+    expect(catalogResolver.resolve).toHaveBeenCalledOnce();
+    expect(
+      conversationRepository.completeAssistantMessage,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({ messageId: "assistant-message-id" }),
+    );
   });
 
   it("rejects an invalid message before persistence or model access", async () => {

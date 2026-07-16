@@ -27,3 +27,8 @@ export type PersistedConversation = {
   updatedAt: string;
   messages: PersistedMessage[];
 };
+
+export type AppendedAssistantReply = {
+  assistantMessage: PersistedMessage;
+  state: "created" | "existing" | "retried";
+};

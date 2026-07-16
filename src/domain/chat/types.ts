@@ -53,6 +53,11 @@ export type ChatResponse =
       assistantMessage: PersistedMessage;
     }
   | {
+      status: "pending";
+      conversationId: string;
+      assistantMessage: PersistedMessage;
+    }
+  | {
       status: "error";
       conversationId: string | null;
       assistantMessage: PersistedMessage | null;

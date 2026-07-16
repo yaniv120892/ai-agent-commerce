@@ -3,6 +3,90 @@ import { describe, expect, it, vi } from "vitest";
 import { ConversationRepository } from "./conversation-repository";
 
 describe("ConversationRepository", () => {
+  it("identifies an existing pending request-linked assistant reply without changing it", async () => {
+    const pendingAssistantMessage = {
+      content: "",
+      createdAt: new Date("2026-07-16T10:00:00.000Z"),
+      id: "assistant-message-id",
+      productCards: [],
+      role: "assistant",
+      status: "pending",
+    };
+    const message = {
+      findUnique: vi.fn().mockResolvedValue({
+        assistantReply: pendingAssistantMessage,
+      }),
+      updateMany: vi.fn(),
+    };
+    const prisma = { message };
+    const repository = new ConversationRepository(prisma as never);
+
+    const result = await repository.appendMessageWithPendingReply({
+      clientRequestId: "request-id",
+      content: "Find me a phone",
+      conversationId: "conversation-id",
+    });
+
+    expect(result).toMatchObject({
+      assistantMessage: { id: "assistant-message-id", status: "pending" },
+      state: "existing",
+    });
+    expect(message.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("atomically retries a failed request-linked assistant reply", async () => {
+    const failedAssistantMessage = {
+      content: "",
+      createdAt: new Date("2026-07-16T10:00:00.000Z"),
+      id: "assistant-message-id",
+      productCards: [],
+      role: "assistant",
+      status: "failed",
+    };
+    const retriedAssistantMessage = {
+      ...failedAssistantMessage,
+      status: "pending",
+    };
+    const message = {
+      findUnique: vi
+        .fn()
+        .mockResolvedValueOnce({ assistantReply: failedAssistantMessage })
+        .mockResolvedValueOnce({ assistantReply: retriedAssistantMessage }),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+    };
+    const prisma = {
+      $transaction: vi
+        .fn()
+        .mockImplementation(async (callback) => callback({ message })),
+      message,
+    };
+    const repository = new ConversationRepository(prisma as never);
+
+    const result = await repository.appendMessageWithPendingReply({
+      clientRequestId: "request-id",
+      content: "Find me a phone",
+      conversationId: "conversation-id",
+    });
+
+    expect(result).toMatchObject({
+      assistantMessage: { id: "assistant-message-id", status: "pending" },
+      state: "retried",
+    });
+    expect(prisma.$transaction).toHaveBeenCalledOnce();
+    expect(message.updateMany).toHaveBeenCalledWith({
+      data: {
+        content: "",
+        status: "pending",
+      },
+      where: {
+        conversationId: "conversation-id",
+        id: "assistant-message-id",
+        role: "assistant",
+        status: "failed",
+      },
+    });
+  });
+
   it("completes only the targeted pending assistant message and stores cards by input order", async () => {
     const message = {
       findUnique: vi.fn().mockResolvedValue({

@@ -101,7 +101,10 @@ describe("ConversationRepository", () => {
       },
     });
 
-    expect(retriedAssistantMessage.id).toBe(firstAssistantMessage.id);
+    expect(retriedAssistantMessage.assistantMessage.id).toBe(
+      firstAssistantMessage.assistantMessage.id,
+    );
+    expect(retriedAssistantMessage.state).toBe("existing");
     expect(messages).toHaveLength(2);
     expect(messages.map((message) => message.role)).toEqual([
       "user",
@@ -141,14 +144,16 @@ describe("ConversationRepository", () => {
         createdAt: new Date("2030-07-16T10:00:01.000Z"),
       },
       where: {
-        id: secondAssistantMessage.id,
+        id: secondAssistantMessage.assistantMessage.id,
       },
     });
 
     const retriedAssistantMessage =
       await repository.appendMessageWithPendingReply(firstRequest);
 
-    expect(retriedAssistantMessage.id).toBe(firstAssistantMessage.id);
+    expect(retriedAssistantMessage.assistantMessage.id).toBe(
+      firstAssistantMessage.assistantMessage.id,
+    );
   });
 
   it("returns one assistant reply when concurrent retries use one request ID", async () => {
@@ -173,8 +178,53 @@ describe("ConversationRepository", () => {
       },
     });
 
-    expect(secondAssistantMessage.id).toBe(firstAssistantMessage.id);
+    expect(secondAssistantMessage.assistantMessage.id).toBe(
+      firstAssistantMessage.assistantMessage.id,
+    );
     expect(messages).toHaveLength(2);
+  });
+
+  it("atomically resets a failed request-linked reply to pending for one retry", async () => {
+    const conversation = await prisma.conversation.create({
+      data: {
+        title: "Failed retry test",
+      },
+    });
+    const request = {
+      clientRequestId: "00000000-0000-4000-8000-000000000008",
+      content: "Show me keyboards.",
+      conversationId: conversation.id,
+    };
+    const firstReply = await repository.appendMessageWithPendingReply(request);
+
+    await repository.failAssistantMessage({
+      conversationId: conversation.id,
+      messageId: firstReply.assistantMessage.id,
+    });
+
+    const retriedReply =
+      await repository.appendMessageWithPendingReply(request);
+    const messages = await prisma.message.findMany({
+      orderBy: {
+        sequence: "asc",
+      },
+      where: {
+        conversationId: conversation.id,
+      },
+    });
+
+    expect(retriedReply).toMatchObject({
+      assistantMessage: {
+        id: firstReply.assistantMessage.id,
+        status: "pending",
+      },
+      state: "retried",
+    });
+    expect(messages).toHaveLength(2);
+    expect(messages[1]).toMatchObject({
+      id: firstReply.assistantMessage.id,
+      status: "pending",
+    });
   });
 
   it("orders initial user and assistant messages by stored sequence", async () => {
