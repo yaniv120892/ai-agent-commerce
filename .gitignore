@@ -1,2 +1,10 @@
 .worktrees/
 .superpowers/
+.env
+.env.local
+.env.test.local
+node_modules/
+.next/
+playwright-report/
+test-results/
+postgres_data/
