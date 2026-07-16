@@ -6,17 +6,19 @@
 
 **Architecture:** A Next.js App Router BFF owns validation, OpenAI calls, DummyJSON access, and PostgreSQL state. The model produces a constrained retrieval plan; server-side code resolves and ranks trusted catalog products; a second model call explains only those results. Product cards come from persisted catalog snapshots, never model prose.
 
-**Tech Stack:** TypeScript, Next.js App Router, React, official OpenAI SDK, Zod, node-postgres (`pg`), PostgreSQL 17 in Docker Compose, Vitest, Playwright, ESLint, Prettier.
+**Tech Stack:** TypeScript, Next.js App Router, React, official OpenAI SDK, Zod, Prisma ORM 7 with Prisma Client and Prisma Migrate, PostgreSQL 17 in Docker Compose, Vitest, Playwright, ESLint, Prettier.
 
 ## Global Constraints
 
 - Use TypeScript throughout; use `T[]` array syntax and define exported types in dedicated `types.ts` files.
+- Use Node.js 20.19 or newer and the generally available Prisma ORM 7; do not introduce the early-access Prisma Next product.
 - Use explicit class access modifiers; class helpers are private methods and public methods appear before private helpers.
 - Always use braces for control flow and fix lint violations instead of suppressing them.
-- Keep the OpenAI API key server-only in `.env.local`; commit `.env.example` but never secrets or a database volume.
+- Keep the OpenAI API key server-only in ignored `.env`; commit `.env.example` but never secrets or a database volume.
 - Use the fixed `https://dummyjson.com` base URL; the model never constructs arbitrary URLs or methods.
 - Build non-streaming v1 replies. Do not introduce cross-conversation memory, card freshness checks, auth, cart, checkout, or deletion controls.
 - Treat product-card snapshots as historical recommendations. Do not overwrite historic cards with live catalog values.
+- Use `prisma/schema.prisma` as the database-model source of truth, commit every Prisma Migrate migration, and access Prisma Client only through `ConversationRepository`.
 - Run `npm run prettier`, `npm run lint`, `npm run build`, and `npm run test` before every commit after Task 1.
 
 ---
@@ -27,13 +29,15 @@
 |---|---|
 | `package.json` | Reproducible scripts and package dependencies. |
 | `compose.yaml` | Local PostgreSQL service, health check, and persisted volume. |
+| `docker/postgres/001-create-test-database.sql` | Creates the isolated local PostgreSQL test database on first volume initialization. |
 | `.env.example` | Non-secret local configuration contract. |
-| `scripts/migrate.ts` | Ordered SQL-migration runner. |
-| `src/db/migrations/001_initial.sql` | Conversation, message, and card-snapshot schema. |
+| `prisma.config.ts` | Prisma CLI schema, migration path, and database-URL configuration. |
+| `prisma/schema.prisma` | Conversation, message, and card-snapshot data model. |
+| `prisma/migrations/**/migration.sql` | Prisma Migrate-generated, version-controlled database migrations. |
 | `src/lib/env.ts` | Zod-validated server environment. |
-| `src/lib/db/postgres-client.ts` | Singleton connection-pool lifecycle. |
+| `src/lib/db/prisma.ts` | Next.js-safe Prisma Client singleton with PostgreSQL driver adapter. |
 | `src/domain/conversations/types.ts` | Conversation, message, snapshot, and repository contracts. |
-| `src/domain/conversations/conversation-repository.ts` | Parameterized PostgreSQL reads/writes and idempotency. |
+| `src/domain/conversations/conversation-repository.ts` | Prisma-backed reads/writes, transactions, mappings, and idempotency. |
 | `src/domain/catalog/types.ts` | DummyJSON and normalized product types. |
 | `src/domain/catalog/catalog-client.ts` | Fixed-base-URL, timeout, retry, and payload validation. |
 | `src/domain/catalog/catalog-resolver.ts` | Valid-plan endpoint selection, local filters, and stable ranking. |
@@ -43,6 +47,7 @@
 | `src/app/api/conversations/**/route.ts` | Explicit HTTP boundary for list, load, create, and append. |
 | `src/components/chat/**` | Sidebar, messages, cards, composer, and chat-state UI. |
 | `src/app/page.tsx`, `src/app/conversations/[conversationId]/page.tsx` | New and resumed chat routes. |
+| `vitest.config.ts`, `vitest.integration.config.ts` | Unit and integration test environments, including test-database setup. |
 | `tests/**` | Integration fixtures, HTTP tests, E2E tests, and evaluation datasets. |
 | `scripts/eval-offline.ts`, `scripts/eval-online.ts` | Separate reproducible and live quality checks. |
 | `README.md` | Setup, decisions, alternatives, test/evaluation scope, and limitations. |
@@ -50,17 +55,17 @@
 ## Task 1: Scaffold the reproducible application runtime
 
 **Files:**
-- Create: `package.json`, `tsconfig.json`, `next.config.ts`, `eslint.config.mjs`, `.prettierrc.json`, `.gitignore`, `.env.example`, `compose.yaml`, `src/app/layout.tsx`, `src/app/globals.css`, `src/app/page.tsx`
-- Create: `scripts/migrate.ts`, `src/lib/env.ts`, `src/lib/db/postgres-client.ts`, `src/db/migrations/001_initial.sql`
+- Create: `package.json`, `tsconfig.json`, `next.config.ts`, `eslint.config.mjs`, `.prettierrc.json`, `.gitignore`, `.env.example`, `compose.yaml`, `docker/postgres/001-create-test-database.sql`, `vitest.config.ts`, `vitest.integration.config.ts`, `src/app/layout.tsx`, `src/app/globals.css`, `src/app/page.tsx`
+- Create: `prisma.config.ts`, `prisma/schema.prisma`, `src/lib/env.ts`, `src/lib/db/prisma.ts`
 - Test: `src/lib/env.test.ts`
 
 **Interfaces:**
 - Produces `environment` from `src/lib/env.ts`, containing `databaseUrl`, `openAiApiKey`, `dummyJsonBaseUrl`, `dummyJsonTimeoutMs`, and `port`.
-- Produces `getPostgresPool(): Pool` and `closePostgresPool(): Promise<void>` for repository code.
+- Produces the `prisma: PrismaClient` singleton for repository construction.
 
 - [ ] **Step 1: Initialize the Next.js project and dependencies**
 
-Create a TypeScript App Router project in the repository root. Add runtime dependencies `next`, `react`, `react-dom`, `openai`, `pg`, and `zod`; add development dependencies `typescript`, `tsx`, `@types/node`, `@types/react`, `@types/react-dom`, `@types/pg`, `vitest`, `@vitest/coverage-v8`, `@playwright/test`, `eslint`, `eslint-config-next`, `prettier`, and `prettier-plugin-tailwindcss` only if Tailwind is deliberately introduced. Keep styling in CSS otherwise.
+Create a TypeScript App Router project in the repository root. Add runtime dependencies `next`, `react`, `react-dom`, `openai`, `zod`, `@prisma/client`, `@prisma/adapter-pg`, `pg`, and `dotenv`; add development dependencies `typescript`, `tsx`, `prisma`, `@types/node`, `@types/react`, `@types/react-dom`, `@types/pg`, `vitest`, `@vitest/coverage-v8`, `@playwright/test`, `@testing-library/jest-dom`, `@testing-library/react`, `@testing-library/user-event`, `jsdom`, `eslint`, `eslint-config-next`, `prettier`, and `prettier-plugin-tailwindcss` only if Tailwind is deliberately introduced. Keep styling in CSS otherwise.
 
 Use these scripts:
 
@@ -70,14 +75,18 @@ Use these scripts:
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "postinstall": "prisma generate",
     "prettier": "prettier --check .",
     "format": "prettier --write .",
     "lint": "eslint .",
-    "test:unit": "vitest run src",
-    "test:integration": "vitest run tests/integration",
+    "test:unit": "vitest run --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "test": "npm run test:unit && npm run test:integration",
     "test:e2e": "playwright test",
-    "db:migrate": "tsx scripts/migrate.ts",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
     "eval:offline": "tsx scripts/eval-offline.ts",
     "eval:online": "tsx scripts/eval-online.ts"
   }
@@ -86,7 +95,7 @@ Use these scripts:
 
 - [ ] **Step 2: Add Docker and environment contracts**
 
-Create `compose.yaml` with one `postgres:17-alpine` service named `database`, a `5432:5432` local port mapping, `POSTGRES_DB=ai_commerce`, `POSTGRES_USER=ai_commerce`, `POSTGRES_PASSWORD=ai_commerce_local`, a named `postgres_data` volume, and a `pg_isready` health check. Create `.env.example` with:
+Create `compose.yaml` with one `postgres:17-alpine` service named `database`, a `5432:5432` local port mapping, `POSTGRES_DB=ai_commerce`, `POSTGRES_USER=ai_commerce`, `POSTGRES_PASSWORD=ai_commerce_local`, a named `postgres_data` volume, and a `pg_isready` health check. Mount `docker/postgres/001-create-test-database.sql` into `/docker-entrypoint-initdb.d/001-create-test-database.sql`; its exact content is `create database ai_commerce_test;`. Create `.env.example` with:
 
 ```dotenv
 DATABASE_URL=postgresql://ai_commerce:ai_commerce_local@localhost:5432/ai_commerce
@@ -96,7 +105,9 @@ DUMMYJSON_BASE_URL=https://dummyjson.com
 DUMMYJSON_TIMEOUT_MS=5000
 ```
 
-Add `.env.local`, `.env.test.local`, `node_modules`, `.next`, `playwright-report`, `test-results`, and `postgres_data` to `.gitignore`.
+Add `.env`, `.env.local`, `.env.test.local`, `node_modules`, `.next`, `playwright-report`, `test-results`, and `postgres_data` to `.gitignore`.
+
+Configure `vitest.config.ts` with the `jsdom` environment and Testing Library setup for component tests. Configure `vitest.integration.config.ts` with the Node environment and `tests/integration/setup.ts` as a setup file; the setup file loads `.env`, assigns `process.env.DATABASE_URL = process.env.TEST_DATABASE_URL`, and throws before tests run when `TEST_DATABASE_URL` is absent.
 
 - [ ] **Step 3: Write the failing environment-validation test**
 
@@ -119,64 +130,84 @@ Run: `npm run test:unit -- src/lib/env.test.ts`
 
 Expected: FAIL because `createEnvironment` is not exported.
 
-- [ ] **Step 5: Implement environment and database bootstrapping**
+- [ ] **Step 5: Implement environment, Prisma configuration, and the client singleton**
 
 Implement `createEnvironment(values: NodeJS.ProcessEnv): Environment` with Zod. Require `DATABASE_URL` and `OPENAI_API_KEY` for runtime, validate the URL and a positive integer timeout, default `DUMMYJSON_BASE_URL` to `https://dummyjson.com`, and never export the raw environment object to client modules.
 
-Implement the migration runner to read sorted `.sql` files, create an internal `schema_migrations(name text primary key, applied_at timestamptz not null default now())` table, apply each unapplied file inside a transaction, and record it only after its SQL succeeds. `getPostgresPool` must create one `Pool` from `environment.databaseUrl`; `closePostgresPool` must call `pool.end()`.
+Create `prisma.config.ts` with `import "dotenv/config"`, `defineConfig`, schema path `prisma/schema.prisma`, migrations path `prisma/migrations`, and `DATABASE_URL` as the Prisma CLI datasource URL. Implement `src/lib/db/prisma.ts` with the generated Prisma Client, `PrismaPg` from `@prisma/adapter-pg`, and a global singleton. The adapter receives `environment.databaseUrl`; development hot reload must reuse the client. Only server modules may import this singleton.
 
-- [ ] **Step 6: Add the initial migration**
+- [ ] **Step 6: Define the Prisma schema and generate the initial migration**
 
-Create `001_initial.sql` with `pgcrypto`, then these tables and indexes:
+Create `prisma/schema.prisma` with `provider = "prisma-client"`, custom generated-client output at `../src/generated/prisma`, a `postgresql` datasource, and the following models. Use Prisma's `Decimal` for persisted price/rating and map them to numbers only at the API/UI boundary:
 
-```sql
-create extension if not exists pgcrypto;
+```prisma
+model Conversation {
+  id        String    @id @default(uuid()) @db.Uuid
+  title     String    @db.VarChar(80)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  messages  Message[]
 
-create table conversations (
-  id uuid primary key default gen_random_uuid(),
-  title varchar(80) not null,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+  @@index([updatedAt(sort: Desc)])
+  @@map("conversations")
+}
 
-create table messages (
-  id uuid primary key default gen_random_uuid(),
-  conversation_id uuid not null references conversations(id) on delete cascade,
-  client_request_id uuid,
-  role varchar(16) not null check (role in ('user', 'assistant')),
-  content text not null default '',
-  status varchar(16) not null check (status in ('pending', 'complete', 'failed')),
-  created_at timestamptz not null default now(),
-  unique (conversation_id, client_request_id)
-);
+model Message {
+  id              String               @id @default(uuid()) @db.Uuid
+  conversationId  String               @map("conversation_id") @db.Uuid
+  clientRequestId String?              @map("client_request_id") @db.Uuid
+  role            MessageRole
+  content         String               @default("")
+  status          MessageStatus
+  createdAt       DateTime             @default(now()) @map("created_at")
+  conversation    Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  productCards    MessageProductCard[]
 
-create table message_product_cards (
-  message_id uuid not null references messages(id) on delete cascade,
-  position integer not null check (position >= 0),
-  product_id integer not null,
-  title text not null,
-  short_description text not null,
-  price numeric(12, 2) not null,
-  image_url text not null,
-  category text not null,
-  rating numeric(3, 2),
-  primary key (message_id, position)
-);
+  @@unique([conversationId, clientRequestId])
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
 
-create index messages_conversation_created_at_idx on messages (conversation_id, created_at);
-create index conversations_updated_at_idx on conversations (updated_at desc);
+model MessageProductCard {
+  messageId        String   @map("message_id") @db.Uuid
+  position         Int
+  productId        Int      @map("product_id")
+  title            String
+  shortDescription String   @map("short_description")
+  price            Decimal  @db.Decimal(12, 2)
+  imageUrl         String   @map("image_url")
+  category         String
+  rating           Decimal? @db.Decimal(3, 2)
+  message          Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, position])
+  @@map("message_product_cards")
+}
+
+enum MessageRole {
+  user
+  assistant
+}
+
+enum MessageStatus {
+  pending
+  complete
+  failed
+}
 ```
+
+Run `npm run db:migrate -- --name init`, review the generated `prisma/migrations/*_init/migration.sql`, then run `npm run db:generate`.
 
 - [ ] **Step 7: Verify the runtime baseline**
 
-Run: `docker compose up -d database && npm run db:migrate && npm run test:unit -- src/lib/env.test.ts && npm run prettier && npm run lint && npm run build`
+Run: `set -a && source .env && set +a && docker compose up -d database && npm run db:migrate -- --name init && DATABASE_URL="$TEST_DATABASE_URL" npm run db:migrate:deploy && npm run db:generate && npm run test:unit -- src/lib/env.test.ts && npm run prettier && npm run lint && npm run build`
 
-Expected: the database health check becomes healthy, migration records `001_initial.sql`, the environment test passes, and format/lint/build exit 0.
+Expected: the database health check becomes healthy, Prisma records the initial migration in both databases' `_prisma_migrations` tables, generated client files exist, the environment test passes, and format/lint/build exit 0.
 
 - [ ] **Step 8: Commit the baseline**
 
 ```bash
-git add package.json package-lock.json tsconfig.json next.config.ts eslint.config.mjs .prettierrc.json .gitignore .env.example compose.yaml scripts/migrate.ts src/app src/lib src/db src/lib/env.test.ts
+git add package.json package-lock.json tsconfig.json next.config.ts eslint.config.mjs .prettierrc.json .gitignore .env.example compose.yaml docker prisma prisma.config.ts src/app src/lib src/generated src/lib/env.test.ts vitest.config.ts vitest.integration.config.ts
 git commit -m "build: scaffold ai commerce application"
 ```
 
@@ -184,11 +215,12 @@ git commit -m "build: scaffold ai commerce application"
 
 **Files:**
 - Create: `src/domain/conversations/types.ts`, `src/domain/conversations/conversation-repository.ts`, `src/domain/conversations/conversation-repository.test.ts`
-- Modify: `src/db/migrations/001_initial.sql` only if Task 1 verification exposes an incompatible constraint.
+- Create: `tests/integration/setup.ts`
+- Modify: `prisma/schema.prisma` and create a new Prisma migration only if Task 1 verification exposes an incompatible constraint.
 - Test: `tests/integration/conversation-repository.integration.test.ts`
 
 **Interfaces:**
-- Consumes `Pool` from `getPostgresPool()`.
+- Consumes `PrismaClient` from `src/lib/db/prisma.ts`.
 - Produces `ConversationRepository` with `listConversations`, `getConversation`, `createConversationWithPendingReply`, `appendMessageWithPendingReply`, `completeAssistantMessage`, and `failAssistantMessage`.
 
 - [ ] **Step 1: Define persistence contracts and write failing unit tests**
@@ -227,7 +259,7 @@ export type PersistedConversation = {
 };
 ```
 
-Write a unit test using a mocked `Pool` asserting `completeAssistantMessage` submits parameterized values and inserts each card with its array index as `position`.
+Write a unit test using a mocked `PrismaClient` asserting `completeAssistantMessage` invokes `$transaction`, changes only the target pending assistant message, and creates each card with its array index as `position`.
 
 - [ ] **Step 2: Run the repository unit test to verify it fails**
 
@@ -237,13 +269,13 @@ Expected: FAIL because `ConversationRepository` is missing.
 
 - [ ] **Step 3: Implement the repository and idempotency behavior**
 
-Implement a class with explicit public/private modifiers. `createConversationWithPendingReply` must start a transaction, insert the conversation, user message with the client request ID, pending assistant message, and return both messages. `appendMessageWithPendingReply` must first look up the unique `(conversation_id, client_request_id)` user message; on a match, return the existing pending or failed assistant message rather than insert a duplicate.
+Implement a class with explicit public/private modifiers. `createConversationWithPendingReply` must use `prisma.$transaction`, create the conversation, user message with the client request ID, pending assistant message, and return both messages. `appendMessageWithPendingReply` must first use Prisma's compound unique lookup for `(conversationId, clientRequestId)`; on a match, return the existing pending or failed assistant message rather than insert a duplicate.
 
-`completeAssistantMessage` must update one pending assistant message to `complete`, delete any prior snapshot rows for that message, insert the provided snapshots in position order, and update the conversation timestamp in one transaction. `failAssistantMessage` must update only the pending assistant message to `failed`. All SQL values use `$1`-style parameters.
+`completeAssistantMessage` must update one pending assistant message to `complete`, replace any prior snapshot rows with `createMany` data in position order, and update the conversation timestamp in one Prisma transaction. `failAssistantMessage` must update only the pending assistant message to `failed`. Repository mappers must convert Prisma `Decimal` values to `number` before returning domain types.
 
 - [ ] **Step 4: Write the database integration tests**
 
-Create integration tests that migrate `TEST_DATABASE_URL`, truncate the three application tables before each test, and verify:
+Create `tests/integration/setup.ts` so the integration Vitest configuration loads `.env`, replaces `DATABASE_URL` with `TEST_DATABASE_URL` before importing application modules, and disconnects Prisma after the suite. Before the integration suite, run `set -a && source .env && set +a && DATABASE_URL="$TEST_DATABASE_URL" npm run db:migrate:deploy`. In the tests, use `prisma.messageProductCard.deleteMany`, `prisma.message.deleteMany`, and `prisma.conversation.deleteMany` before each test, and verify:
 
 ```ts
 it("resumes messages and snapshot cards in stored order", async () => {
@@ -574,7 +606,7 @@ Create a checklist test in `README.md` content review covering required sections
 Document these commands in order, matching the implemented scripts exactly:
 
 ```bash
-cp .env.example .env.local
+cp .env.example .env
 docker compose up -d database
 npm install
 npm run db:migrate
@@ -585,7 +617,7 @@ Explain `docker compose down` preserves history and `docker compose down -v` del
 
 - [ ] **Step 3: Document the design decisions in the user’s own words**
 
-Include the concrete rejection reasons for React plus a separate Node API, Vercel AI SDK, LangChain/Mastra, SQLite, and a hosted database. Explain the constrained retrieval plan, exact DummyJSON endpoint policy, server-side ranking, model/data boundary, snapshots, Postgres failure behavior, non-streaming decision, and deferred live freshness/memory features.
+Include the concrete rejection reasons for React plus a separate Node API, Vercel AI SDK, LangChain/Mastra, SQLite, raw node-postgres queries, and a hosted database. Explain the Prisma schema/migration/client decision, constrained retrieval plan, exact DummyJSON endpoint policy, server-side ranking, model/data boundary, snapshots, Postgres failure behavior, non-streaming decision, and deferred live freshness/memory features.
 
 - [ ] **Step 4: Document evaluation boundaries and limitations**
 

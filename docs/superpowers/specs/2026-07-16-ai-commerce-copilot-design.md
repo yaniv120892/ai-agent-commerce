@@ -30,7 +30,7 @@ Historic product cards are immutable snapshots of what was recommended. They inc
 
 ## Architecture Choice
 
-Use Next.js App Router with TypeScript, route handlers as a backend for frontend (BFF), the official OpenAI SDK, PostgreSQL, and Docker Compose.
+Use Next.js App Router with TypeScript, route handlers as a backend for frontend (BFF), the official OpenAI SDK, Prisma ORM, PostgreSQL, and Docker Compose.
 
 ```mermaid
 flowchart LR
@@ -54,6 +54,7 @@ The BFF keeps the OpenAI credential private and is the sole owner of input valid
 | Next.js plus Vercel AI SDK | A useful option for token streaming and chat transport, but streaming is deliberately out of scope. The official OpenAI SDK leaves fewer version-dependent abstractions to explain. |
 | LangChain, LangGraph, or Mastra | These frameworks help coordinate multiple tools, durable agent workflows, or advanced observability. This app has one read-only catalog boundary, so an agent runtime would obscure rather than simplify the request-to-recommendation flow. |
 | SQLite | SQLite is a valid lightweight local database, but PostgreSQL in Docker Compose better demonstrates a reproducible, server-owned relational persistence boundary and a migration/test-database workflow. |
+| Raw node-postgres queries | Direct SQL offers total control, but would require hand-maintained schema mapping, SQL migrations, and more verbose transactional query code. Prisma provides generated TypeScript types and reviewed migrations while the repository retains the application boundary. |
 | Hosted database | It would require authentication, authorization, tenancy, privacy controls, and network resilience that the locally runnable assignment does not need. |
 
 ## Model and Retrieval Design
@@ -105,7 +106,7 @@ User text and catalog text are untrusted data, never instructions. The system pr
 
 ## Conversations and Persistence
 
-PostgreSQL runs in Docker Compose with a persisted local volume. Versioned migrations create the schema. Development configuration uses an ignored environment file; `.env.example` documents required variables. A separate test database is migrated and truncated for integration tests.
+PostgreSQL runs in Docker Compose with a persisted local volume. Prisma Schema is the database-model source of truth and Prisma Migrate creates versioned, committed migrations. Prisma Client is configured once as a Next.js-safe singleton through the PostgreSQL driver adapter; the repository remains the only domain code allowed to query it. Development configuration uses an ignored environment file; `.env.example` documents required variables. A separate test database is migrated and truncated for integration tests.
 
 ```mermaid
 erDiagram
@@ -178,7 +179,7 @@ External dependencies are behind explicit interfaces:
 
 - `ModelClient` produces retrieval plans and grounded replies.
 - `CatalogClient` reads DummyJSON and normalizes product data.
-- `ConversationRepository` owns PostgreSQL persistence.
+- `ConversationRepository` owns PostgreSQL persistence through Prisma Client.
 
 Production implementations call the real services. Test fakes make the deterministic application behavior reproducible.
 
