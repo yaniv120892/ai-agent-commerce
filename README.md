@@ -37,7 +37,7 @@ docker compose down
 docker compose down -v
 ```
 
-`docker compose down` stops and removes containers but preserves the `postgres_data` volume, so local conversation history remains. `docker compose down -v` also removes that volume and therefore deletes all local conversation history. If a browser still has a URL for a cleared conversation, the UI reports that the conversation no longer exists and offers a new one; it does not silently recreate the old history.
+`docker compose down` stops and removes containers but preserves the `postgres_data` volume, so local conversation history remains. `docker compose down -v` also removes that volume and therefore deletes all local conversation history. Reloading a deleted `/conversations/:id` URL renders Next.js's 404 page. During an already-open client session, a request that discovers the missing conversation shows the client recovery control to start a new conversation; it never silently recreates history.
 
 For a fresh test schema, export the variables from `.env` and run the migrations against `TEST_DATABASE_URL`:
 
@@ -87,7 +87,7 @@ Responses are deliberately non-streaming. A pending assistant state is clearer t
 
 ## Retrieval policy
 
-The catalog origin is fixed to `https://dummyjson.com`; `.env` cannot redirect it to another host. All upstream requests are read-only `GET`s, JSON is schema-validated, calls have a five-second timeout, and network or upstream-5xx failures get at most one retry.
+The catalog origin is fixed to `https://dummyjson.com`; `.env` cannot redirect it to another host. All upstream requests are read-only `GET`s and JSON is schema-validated. `DUMMYJSON_TIMEOUT_MS` configures the request timeout and defaults to 5,000 milliseconds; network or upstream-5xx failures get at most one retry.
 
 | Request kind    | DummyJSON endpoint and server policy                                                      |
 | --------------- | ----------------------------------------------------------------------------------------- |
@@ -99,7 +99,7 @@ The catalog origin is fixed to `https://dummyjson.com`; `.env` cannot redirect i
 
 The planner can request at most two search terms, a known category, maximum price, minimum rating, stock state, one of four sort values, and up to two prior product references. The server validates every field and rejects extra or incompatible fields before retrieval. Search/category results are filtered locally. Results are capped at six cards and ranked deterministically: exact title or token matches first, then the requested explicit sort (`price_asc`, `price_desc`, or `rating_desc`) when present; relevance preserves upstream candidate order; product ID is the final tie-breaker.
 
-Ambiguous messages receive one targeted clarification when the missing detail would materially alter results; otherwise the assistant states the assumption it used. Off-catalog requests say that the current DummyJSON catalog cannot provide the item, rather than searching the web or inventing alternatives. A message can return at most two independent result groups; a larger multi-intent request is clarified. User and catalog text are data, not instructions.
+Ambiguous messages receive one targeted clarification when the missing detail would materially alter results; otherwise the assistant states the assumption it used. Off-catalog requests say that the current DummyJSON catalog cannot provide the item, rather than searching the web or inventing alternatives. One request produces one ranked product-card list of at most six items; separate result groups are not implemented, so multi-intent requests are clarified rather than merged into a mixed list. User and catalog text are data, not instructions.
 
 ## Conversations and recovery
 
@@ -107,14 +107,14 @@ An unsent draft exists only in the browser. The first submitted message atomical
 
 The sidebar lists persisted conversations by most-recent update. Resuming a conversation loads its saved messages and card snapshots. Only the latest twelve completed messages and their prior product IDs reach the planner. There is no cross-conversation preference memory or profiling.
 
-| Failure                                    | User-visible behavior                                                                                                      |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
-| PostgreSQL unavailable before generation   | The request fails early as a persistence error; the app does not send an unrecordable request to the model.                |
-| Database write fails after model work      | The assistant response is not marked complete; the user gets a retryable persistence error instead of misleading history.  |
-| OpenAI failure or timeout                  | The user message stays saved, the assistant message becomes retryable failed state, and no replacement answer is invented. |
-| DummyJSON timeout, 5xx, or invalid payload | A retryable catalog error is distinct from a valid empty result; prior history remains usable.                             |
-| Invalid model plan                         | The response is failed safely; invalid model output never selects arbitrary endpoints or cards.                            |
-| Local volume cleared                       | The old conversation returns an explicit unknown-conversation state and the user can start new history.                    |
+| Failure                                    | User-visible behavior                                                                                                                                                                                                           |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PostgreSQL unavailable before generation   | The request fails early as a persistence error; the app does not send an unrecordable request to the model.                                                                                                                     |
+| Database write fails after model work      | The assistant response is not marked complete. The server marks the persisted reply failed when storage is reachable, so the same request ID can atomically resume one retry without duplicating the user or assistant message. |
+| OpenAI failure or timeout                  | The user message stays saved, the assistant message becomes retryable failed state, and no replacement answer is invented.                                                                                                      |
+| DummyJSON timeout, 5xx, or invalid payload | A retryable catalog error is distinct from a valid empty result; prior history remains usable.                                                                                                                                  |
+| Invalid model plan                         | The response is failed safely; invalid model output never selects arbitrary endpoints or cards.                                                                                                                                 |
+| Local volume cleared                       | Reloading a deleted conversation URL is a 404. An active client request receives an explicit unknown-conversation state and can start new history.                                                                              |
 
 ## Verification and evaluation
 

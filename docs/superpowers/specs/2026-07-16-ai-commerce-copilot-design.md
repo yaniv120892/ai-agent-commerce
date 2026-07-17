@@ -153,7 +153,7 @@ Only a bounded recent history from the active conversation is passed to the mode
 | DummyJSON timeout, 5xx, or invalid payload | Return a typed retryable catalog failure distinct from a valid no-results response. Keep prior history usable. |
 | OpenAI failure or timeout | Preserve the user message and show a retryable assistant failure. Do not invent a replacement answer. |
 | PostgreSQL unavailable before generation | Fail early with a clear persistence-unavailable error rather than sending an unrecordable request to the model. |
-| PostgreSQL write failure after a model response | Do not mark the response complete; show a retryable persistence error and avoid a misleading persisted history. |
+| PostgreSQL write failure after a model response | Do not mark the response complete. When storage is reachable, mark the pending reply failed so the existing request-ID retry flow can atomically resume one replacement generation without duplicating messages. |
 | Database migration failure | Stop persistence-dependent requests with a local setup error rather than mixing schema versions. |
 | Database volume cleared while the browser is open | A subsequent request finds an unknown conversation. The UI explains that local history was cleared and offers a new conversation rather than silently recreating prior history. |
 | Docker volume removed | History is gone by design; the README explains that the volume is the persistence boundary. |
