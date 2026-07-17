@@ -30,7 +30,7 @@ npm run lint           # eslint .
 npm run build           # next build
 npm run test              # unit + integration (test:unit then test:integration)
 npm run test:e2e          # playwright, starts its own dev server on :3001
-npm run eval:offline       # deterministic scenario evaluation
+npm run eval:offline       # deterministic scenario evaluation, gated on tests/evals/eval-config.json
 ```
 
 Single-test invocations:
@@ -52,7 +52,7 @@ Other:
 
 ```bash
 npm run db:studio                    # Prisma Studio
-RUN_ONLINE_EVAL=true npm run eval:online   # optional, hits real OpenAI/DummyJSON, never CI-blocking
+RUN_ONLINE_EVAL=true npm run eval:online   # real OpenAI/DummyJSON, bounded by the committed spend cap
 npx playwright install chromium       # once per machine, for e2e
 ```
 
@@ -89,7 +89,22 @@ UI (src/app, src/components/chat)
 - **Unit** (`src/**/*.test.{ts,tsx}`, `vitest.config.ts`, jsdom): plan validation, ranking, snapshot mapping, chat orchestration, UI state. Uses fakes, no live services, imports alias `server-only` to a no-op (`tests/server-only.ts`).
 - **Integration** (`tests/integration/*.integration.test.ts`, `vitest.integration.config.ts`, node env, `fileParallelism: false`): route/service/repository/retry/recovery behavior against the real migrated local test database.
 - **E2E** (`tests/e2e/*.spec.ts`, Playwright): boots `next dev --port 3001` with `E2E_MODE=true` and deterministic server-only clients — no live OpenAI/DummyJSON calls.
-- **Offline eval** (`scripts/eval-offline.ts`, scenarios in `tests/evals/scenarios.json`): versioned fixture scenarios checked for plan validity, intent, constraints, selected IDs, grounding, latency; writes a report under `artifacts/evaluations/`. Deterministic, does not assess exact prose.
-- **Online eval** (`scripts/eval-online.ts`): optional, real OpenAI/DummyJSON, cost-capped, opt-in only via `RUN_ONLINE_EVAL=true`.
+- **Offline eval** (`scripts/eval-offline.ts`, scenarios in `tests/evals/scenarios.json`): versioned fixture scenarios checked for plan validity, intent, constraints, selected IDs, grounding, latency; writes a report under `artifacts/evaluations/`. Deterministic, does not assess exact prose. Runs `DeterministicModelClient`, so it is a regression test for the resolver/ranking/grounding logic — it cannot catch a planner-prompt regression.
+- **Online eval** (`scripts/eval-online.ts`): the only suite that exercises the real planner. Real OpenAI/DummyJSON, opt-in via `RUN_ONLINE_EVAL=true`, bounded by the committed spend cap.
+
+Both eval scripts run under `--conditions=react-server` so that `import "server-only"` resolves to a no-op; without it the scripts cannot import the model client at all.
 
 Deterministic tests assert structured effects/invariants, not exact assistant wording — follow that convention when adding new tests.
+
+## Evaluation gate
+
+`tests/evals/eval-config.json` is the committed policy for both suites, validated on load (`src/domain/testing/evaluation-config.ts`) before the online suite spends anything. `EvaluationGate` (`src/domain/testing/evaluation-gate.ts`) turns results into a pass/block decision:
+
+- **`minimumPassRate`** — offline is 1 (all must pass); online is lower because the real model is stochastic. Quarantined failures leave the denominator, so quarantining cannot drag the rate down and force the threshold lower.
+- **`expectedFailures`** — per-suite quarantine, each entry carrying a reason. A quarantined scenario that _passes_ blocks the run, as does an entry naming a scenario that no longer exists; without both checks a stale entry would silently suppress a real regression.
+- **`mustPassScenarios`** — blocks regardless of pass rate, so a security scenario failing every run cannot hide inside an acceptable average.
+- **`spend`** — `maxUsd` plus per-model pricing and its source URL. `SpendMeter` (`src/domain/testing/spend-meter.ts`) meters via the OpenAI SDK's `ClientOptions.fetch` seam; it only accounts, and the eval loop enforces the cap between scenarios. A spend abort fails the run regardless of pass rate, and a run that could not meter a call fails rather than trusting a $0 total. `maxScenarios` asserts rather than truncates.
+
+CI (`.github/workflows/eval-gate.yml`) runs the offline suite on every PR and the online suite only when a diff touches the planner prompt, plan schema, model selection, resolver, or scenarios. The job always reports so a required check cannot sit pending; only the paid step is conditional. When adding a scenario whose name is referenced by the config, update both — the gate fails on names it cannot find.
+
+The eval harness spans `deriveActiveContext -> createRetrievalPlan -> CatalogResolver.resolve`. Malformed upstream data, model failure and DB failure are outside it by construction and are covered in `tests/integration/` and `chat-service.test.ts` — do not contort the harness to fake them.
