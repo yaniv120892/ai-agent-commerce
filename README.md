@@ -54,6 +54,16 @@ Playwright Chromium must be installed once on a new machine:
 npx playwright install chromium
 ```
 
+### Working in a git worktree
+
+`git worktree add` copies tracked files (including `compose.yaml`) but never gitignored ones, so a new worktree starts with no `.env` and, if left as-is, would publish Postgres on the same host port `5432` as the main checkout — colliding the moment both run `docker compose up` at once. Run this once per worktree, from inside it:
+
+```bash
+npm run worktree:setup
+```
+
+It seeds `.env` from the main checkout's `.env` (or `.env.example` if the main checkout has none yet), and assigns that worktree a Postgres host port in the `5433`-`5533` range, deterministically derived from the worktree's path and verified free on the host, applying it consistently to `DATABASE_URL`/`TEST_DATABASE_URL` in `.env` and to the `ports:` mapping in `compose.yaml` (only the host side changes; the container stays on `5432`). It is idempotent: re-running it on an already-configured worktree reuses the same port and never touches other `.env` values (like `OPENAI_API_KEY`). It refuses to touch the main checkout, which always keeps `5432`. There's no automatic hook wired to this today: Claude Code's `WorktreeCreate` hook only fires for the VCS-agnostic worktree fallback used outside git repositories, not when `git worktree add` runs directly in a git repo, so this stays a manual, one-line step after creating a worktree.
+
 ## Architecture and decisions
 
 Next.js App Router provides both the React interface and explicit route-handler BFF in one TypeScript application. Route handlers validate HTTP input, keep secrets server-side, translate errors, call domain services, and return persisted conversation data. PostgreSQL holds conversations, messages, and immutable product-card snapshots; Prisma schema and committed Prisma Migrate migrations define that data boundary, and one server-only Prisma client owns database access.
@@ -79,7 +89,7 @@ The choices are intentionally plain:
 | LangChain, LangGraph, or Mastra         | A workflow framework would add abstraction around a single read-only catalog tool and conceal the request-to-recommendation flow rather than simplify it.                         |
 | SQLite                                  | PostgreSQL in Docker Compose better demonstrates a reproducible server-owned relational persistence boundary, migrations, and a separate test database.                           |
 | Raw `node-postgres` queries             | Hand-maintained SQL mapping and migrations would be more verbose. Prisma supplies generated TypeScript types and reviewed migrations while keeping repository ownership explicit. |
-| Hosted database                         | A hosted service would require authentication, authorization, tenancy, privacy, and network-resilience work outside this local project's scope.                                        |
+| Hosted database                         | A hosted service would require authentication, authorization, tenancy, privacy, and network-resilience work outside this local project's scope.                                   |
 
 The model/data boundary is strict. The planner emits a validated retrieval plan; it does not choose hosts, HTTP methods, paths, headers, or arbitrary URLs. The server is the only component allowed to retrieve catalog data, rank candidates, write the database, or construct product cards. The reply model receives only the selected trusted card data. Cards render from saved snapshot DTOs, never by parsing model prose, so past cards preserve the title, description, price, category, rating, and image that were actually recommended. They are not live price or availability guarantees.
 
