@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useReducer, useRef } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { ChatComposer } from "./chat-composer";
-import { ConversationSidebar } from "./conversation-sidebar";
+import {
+  CONVERSATION_SIDEBAR_ID,
+  ConversationSidebar,
+} from "./conversation-sidebar";
 import { MessageList } from "./message-list";
 import type {
   ChatError,
@@ -323,6 +326,8 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
   const activeRequestGeneration = useRef(0);
   const activeRequestController = useRef<AbortController | null>(null);
   const serverConversationId = useRef(initialConversation?.id ?? null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const sidebarToggleRef = useRef<HTMLButtonElement | null>(null);
   const hasPendingMessage = state.conversation?.messages.some(
     (message) => message.status === "pending",
   );
@@ -618,9 +623,23 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
   }
 
   function handleNewConversation(): void {
+    closeSidebar();
     invalidateActiveRequest();
     dispatch({ type: "newConversation" });
     router.push("/");
+  }
+
+  function handleConversationNavigate(): void {
+    closeSidebar();
+    invalidateActiveRequest();
+  }
+
+  function closeSidebar(): void {
+    setIsSidebarOpen(false);
+  }
+
+  function toggleSidebar(): void {
+    setIsSidebarOpen((isOpen) => !isOpen);
   }
 
   function retryMessage(): void {
@@ -648,15 +667,56 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isSidebarOpen) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        setIsSidebarOpen(false);
+        sidebarToggleRef.current?.focus();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isSidebarOpen]);
+
   return (
-    <main className="chat-shell">
+    <main
+      className={`chat-shell${isSidebarOpen ? " chat-shell--sidebar-open" : ""}`}
+    >
       <ConversationSidebar
         activeConversationId={state.conversation?.id ?? null}
-        onConversationNavigate={invalidateActiveRequest}
+        isOpen={isSidebarOpen}
+        onConversationNavigate={handleConversationNavigate}
         onNewConversation={handleNewConversation}
       />
+      {isSidebarOpen ? (
+        <button
+          aria-label="Close conversation list"
+          className="chat-shell__backdrop"
+          onClick={closeSidebar}
+          type="button"
+        />
+      ) : null}
       <section className="chat-panel">
         <header className="chat-panel__header">
+          <button
+            aria-controls={CONVERSATION_SIDEBAR_ID}
+            aria-expanded={isSidebarOpen}
+            className="sidebar-toggle"
+            onClick={toggleSidebar}
+            ref={sidebarToggleRef}
+            type="button"
+          >
+            <span aria-hidden="true" className="sidebar-toggle__icon" />
+            Conversations
+          </button>
           <p className="chat-panel__eyebrow">AI Commerce Copilot</p>
           <h1>{state.conversation?.title ?? "New conversation"}</h1>
         </header>
