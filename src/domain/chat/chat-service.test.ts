@@ -10,9 +10,15 @@ import type {
   ProductCardSnapshot,
 } from "@/domain/conversations/types";
 
+import { PlanValidator } from "@/domain/catalog/plan-validator";
+import { CatalogError } from "@/domain/catalog/types";
+
 import { ChatService } from "./chat-service";
+import { PlanRepairService } from "./plan-repair-service";
 import { createOpenAIClient, OpenAIModelClient } from "./openai-model-client";
 import type { ModelClient } from "./types";
+
+const allowedCategorySlugs = ["smartphones"];
 
 const productCards: ProductCardSnapshot[] = [
   {
@@ -104,23 +110,34 @@ function createDependencies() {
     createRetrievalPlan: vi.fn().mockResolvedValue(createPlan()),
   };
 
+  const planRepairService = new PlanRepairService(
+    modelClient,
+    new PlanValidator(allowedCategorySlugs),
+    allowedCategorySlugs,
+  );
+
   return {
     assistantMessage,
     catalogResolver,
     conversationRepository,
     modelClient,
+    planRepairService,
   };
 }
 
 describe("ChatService", () => {
   it("persists the initial user and pending reply before planning, then stores only resolver snapshots", async () => {
-    const { catalogResolver, conversationRepository, modelClient } =
-      createDependencies();
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
     const service = new ChatService(
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
+      planRepairService,
     );
 
     const response = await service.startConversation({
@@ -147,6 +164,7 @@ describe("ChatService", () => {
       allowedCategorySlugs: ["smartphones"],
       history: [createMessage({ content: "Find me a phone" })],
       priorProductIds: [],
+      repairContext: null,
       userMessage: "Find me a phone",
     });
     expect(modelClient.createGroundedReply).toHaveBeenCalledWith({
@@ -162,17 +180,24 @@ describe("ChatService", () => {
       messageId: "assistant-message-id",
       productCards,
     });
-    expect(catalogResolver.resolve).toHaveBeenCalledWith(createPlan(), []);
+    expect(catalogResolver.resolve).toHaveBeenCalledWith({
+      ...createPlan(),
+      validated: true,
+    });
   });
 
   it("truncates an overlong first message into the persisted title", async () => {
-    const { catalogResolver, conversationRepository, modelClient } =
-      createDependencies();
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
     const service = new ChatService(
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
+      planRepairService,
     );
     const content = "a".repeat(CONVERSATION_TITLE_MAX_LENGTH + 40);
 
@@ -191,8 +216,12 @@ describe("ChatService", () => {
   });
 
   it("persists the conversation before any model call, even when the model is unavailable", async () => {
-    const { catalogResolver, conversationRepository, modelClient } =
-      createDependencies();
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
     vi.mocked(modelClient.createRetrievalPlan).mockRejectedValue(
       new Error("model unavailable"),
     );
@@ -200,7 +229,7 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
+      planRepairService,
     );
 
     const response = await service.startConversation({
@@ -223,8 +252,12 @@ describe("ChatService", () => {
   });
 
   it("returns safe unsupported text without catalog or grounded-reply access", async () => {
-    const { catalogResolver, conversationRepository, modelClient } =
-      createDependencies();
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
     vi.mocked(modelClient.createRetrievalPlan).mockResolvedValue(
       createPlan({
         assistantMessage: "I can only help with products in this catalog.",
@@ -236,7 +269,7 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
+      planRepairService,
     );
 
     const response = await service.startConversation({
@@ -258,8 +291,12 @@ describe("ChatService", () => {
   });
 
   it("marks the persisted assistant reply failed when planning fails", async () => {
-    const { catalogResolver, conversationRepository, modelClient } =
-      createDependencies();
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
     vi.mocked(modelClient.createRetrievalPlan).mockRejectedValue(
       new Error("OpenAI unavailable"),
     );
@@ -267,7 +304,7 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
+      planRepairService,
     );
 
     const response = await service.startConversation({
@@ -286,9 +323,106 @@ describe("ChatService", () => {
     expect(catalogResolver.resolve).not.toHaveBeenCalled();
   });
 
+  it("repairs an invalid plan once and completes the reply", async () => {
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
+    vi.mocked(modelClient.createRetrievalPlan).mockImplementation(
+      async (input) =>
+        input.repairContext === null
+          ? createPlan({ referencedProductIds: [404], searchTerms: [] })
+          : createPlan(),
+    );
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      planRepairService,
+    );
+
+    const response = await service.startConversation({
+      clientRequestId: "request-id",
+      content: "Find me a phone",
+    });
+
+    expect(response).toMatchObject({ status: "complete" });
+    expect(modelClient.createRetrievalPlan).toHaveBeenCalledTimes(2);
+    expect(conversationRepository.failAssistantMessage).not.toHaveBeenCalled();
+    expect(catalogResolver.resolve).toHaveBeenCalledOnce();
+  });
+
+  it("fails with an invalid plan code when the repaired plan is also invalid", async () => {
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
+    vi.mocked(modelClient.createRetrievalPlan).mockResolvedValue(
+      createPlan({ referencedProductIds: [404], searchTerms: [] }),
+    );
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      planRepairService,
+    );
+
+    const response = await service.startConversation({
+      clientRequestId: "request-id",
+      content: "Find me a phone",
+    });
+
+    expect(response).toMatchObject({
+      error: { code: "INVALID_RETRIEVAL_PLAN" },
+      status: "error",
+    });
+    expect(modelClient.createRetrievalPlan).toHaveBeenCalledTimes(2);
+    expect(conversationRepository.failAssistantMessage).toHaveBeenCalledWith({
+      conversationId: "conversation-id",
+      messageId: "assistant-message-id",
+    });
+    expect(catalogResolver.resolve).not.toHaveBeenCalled();
+  });
+
+  it("reports a catalog outage rather than an invalid plan when retrieval fails", async () => {
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
+    catalogResolver.resolve.mockRejectedValue(
+      new CatalogError("UPSTREAM_UNAVAILABLE", "dummyjson down"),
+    );
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      planRepairService,
+    );
+
+    const response = await service.startConversation({
+      clientRequestId: "request-id",
+      content: "Find me a phone",
+    });
+
+    expect(response).toMatchObject({
+      error: { code: "CATALOG_UNAVAILABLE" },
+      status: "error",
+    });
+  });
+
   it("uses only the latest twelve completed messages and their trusted card IDs when appending", async () => {
-    const { catalogResolver, conversationRepository, modelClient } =
-      createDependencies();
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
     const history = Array.from({ length: 13 }, (_, index) =>
       createMessage({
         id: `message-${index}`,
@@ -305,7 +439,7 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
+      planRepairService,
     );
 
     await service.appendMessage({
@@ -326,8 +460,12 @@ describe("ChatService", () => {
   });
 
   it("carries forward the category established by the most recently resolved reply as activeContext", async () => {
-    const { catalogResolver, conversationRepository, modelClient } =
-      createDependencies();
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
     const history = [
       createMessage({ content: "Show me phones", id: "message-0" }),
       createMessage({
@@ -344,7 +482,7 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
+      planRepairService,
     );
 
     await service.appendMessage({
@@ -361,8 +499,12 @@ describe("ChatService", () => {
   });
 
   it("does not carry forward a category when the last resolved reply spans mixed categories", async () => {
-    const { catalogResolver, conversationRepository, modelClient } =
-      createDependencies();
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
     const history = [
       createMessage({
         content: "Show me electronics",
@@ -381,7 +523,7 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones", "laptops"],
+      planRepairService,
     );
 
     await service.appendMessage({
@@ -401,6 +543,7 @@ describe("ChatService", () => {
       catalogResolver,
       conversationRepository,
       modelClient,
+      planRepairService,
     } = createDependencies();
     const completedAssistantMessage = {
       ...assistantMessage,
@@ -417,7 +560,7 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
+      planRepairService,
     );
 
     const response = await service.appendMessage({
@@ -443,6 +586,7 @@ describe("ChatService", () => {
       catalogResolver,
       conversationRepository,
       modelClient,
+      planRepairService,
     } = createDependencies();
     conversationRepository.appendMessageWithPendingReply.mockResolvedValue({
       assistantMessage,
@@ -453,7 +597,7 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
+      planRepairService,
     );
 
     const response = await service.appendMessage({
@@ -477,6 +621,7 @@ describe("ChatService", () => {
       catalogResolver,
       conversationRepository,
       modelClient,
+      planRepairService,
     } = createDependencies();
     conversationRepository.appendMessageWithPendingReply.mockResolvedValue({
       assistantMessage,
@@ -487,7 +632,7 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
+      planRepairService,
     );
 
     const response = await service.appendMessage({
@@ -512,6 +657,7 @@ describe("ChatService", () => {
       catalogResolver,
       conversationRepository,
       modelClient,
+      planRepairService,
     } = createDependencies();
     conversationRepository.completeAssistantMessage.mockRejectedValueOnce(
       new Error("PostgreSQL write failed"),
@@ -531,7 +677,7 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
+      planRepairService,
     );
     const input = {
       clientRequestId: "request-id",
@@ -570,6 +716,7 @@ describe("ChatService", () => {
       catalogResolver,
       conversationRepository,
       modelClient,
+      planRepairService,
     } = createDependencies();
     conversationRepository.appendMessageWithPendingReply.mockResolvedValue({
       assistantMessage,
@@ -580,7 +727,7 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
+      planRepairService,
     );
 
     await service.appendMessage({
@@ -598,13 +745,17 @@ describe("ChatService", () => {
   });
 
   it("rejects an invalid message before persistence or model access", async () => {
-    const { catalogResolver, conversationRepository, modelClient } =
-      createDependencies();
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
     const service = new ChatService(
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
+      planRepairService,
     );
 
     const response = await service.startConversation({
@@ -661,6 +812,7 @@ describe("OpenAIModelClient", () => {
       allowedCategorySlugs: ["smartphones"],
       history: [createMessage()],
       priorProductIds: [101],
+      repairContext: null,
       userMessage: "Find a phone",
     });
 
@@ -750,6 +902,7 @@ describe("OpenAIModelClient", () => {
         allowedCategorySlugs: ["smartphones"],
         history: [],
         priorProductIds: [],
+        repairContext: null,
         userMessage: "Find a phone",
       }),
     ).rejects.toThrow(/retrieval plan was truncated at max_output_tokens/);

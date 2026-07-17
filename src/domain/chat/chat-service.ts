@@ -1,5 +1,6 @@
 import type { CatalogResolver } from "../catalog/catalog-resolver";
 import { CatalogError } from "../catalog/types";
+import type { PlanRepairService } from "./plan-repair-service";
 import type { ConversationRepository } from "../conversations/conversation-repository";
 import {
   CONVERSATION_TITLE_MAX_LENGTH,
@@ -18,7 +19,7 @@ import type {
   ChatErrorCode,
   ChatResponse,
   ModelClient,
-  RetrievalPlan,
+  PlanAttemptOutcome,
   StartConversationInput,
 } from "./types";
 import { deriveActiveContext } from "./active-context";
@@ -38,6 +39,13 @@ type ConversationStore = Pick<
 
 type CatalogResolution = Pick<CatalogResolver, "resolve">;
 
+type PlanCreation = Pick<PlanRepairService, "createValidPlan">;
+
+type PlanFailure = {
+  code: Extract<ChatErrorCode, "INVALID_RETRIEVAL_PLAN" | "MODEL_UNAVAILABLE">;
+  message: string;
+};
+
 type MessageContext = {
   history: PersistedMessage[];
   priorProductIds: number[];
@@ -49,7 +57,7 @@ export class ChatService {
     private readonly conversationRepository: ConversationStore,
     private readonly catalogResolver: CatalogResolution,
     private readonly modelClient: ModelClient,
-    private readonly allowedCategorySlugs: string[],
+    private readonly planRepairService: PlanCreation,
     private readonly replyCompletionCache = new ReplyCompletionCache(),
   ) {}
 
@@ -196,24 +204,29 @@ export class ChatService {
     userMessage: string,
     messageContext: MessageContext,
   ): Promise<ChatResponse> {
-    let plan: RetrievalPlan;
+    let planOutcome: PlanAttemptOutcome;
 
     try {
-      plan = await this.modelClient.createRetrievalPlan({
+      planOutcome = await this.planRepairService.createValidPlan({
         activeContext: messageContext.activeContext,
-        allowedCategorySlugs: this.allowedCategorySlugs,
         history: messageContext.history,
         priorProductIds: messageContext.priorProductIds,
         userMessage,
       });
-    } catch {
+    } catch (error) {
+      const planFailure = this.resolvePlanFailure(error);
+
       return this.failAssistantMessage(
-        "MODEL_UNAVAILABLE",
-        "The assistant is temporarily unavailable. Please retry.",
+        planFailure.code,
+        planFailure.message,
         conversationId,
         assistantMessage,
       );
     }
+
+    this.logPlanValidation(planOutcome);
+
+    const plan = planOutcome.plan;
 
     if (plan.intent === "clarify" || plan.intent === "unsupported") {
       if (plan.assistantMessage === null) {
@@ -236,19 +249,11 @@ export class ChatService {
     let productCards: ProductCardSnapshot[];
 
     try {
-      const result = await this.catalogResolver.resolve(
-        plan,
-        messageContext.priorProductIds,
-      );
+      const result = await this.catalogResolver.resolve(plan);
       productCards = result.productCards;
-    } catch (error) {
-      const code =
-        error instanceof CatalogError && error.code === "INVALID_RETRIEVAL_PLAN"
-          ? "INVALID_RETRIEVAL_PLAN"
-          : "CATALOG_UNAVAILABLE";
-
+    } catch {
       return this.failAssistantMessage(
-        code,
+        "CATALOG_UNAVAILABLE",
         "Catalog results are temporarily unavailable. Please retry.",
         conversationId,
         assistantMessage,
@@ -420,6 +425,33 @@ export class ChatService {
 
   private createConversationTitle(content: string): string {
     return content.slice(0, CONVERSATION_TITLE_MAX_LENGTH);
+  }
+
+  private resolvePlanFailure(error: unknown): PlanFailure {
+    if (
+      error instanceof CatalogError &&
+      error.code === "INVALID_RETRIEVAL_PLAN"
+    ) {
+      return {
+        code: "INVALID_RETRIEVAL_PLAN",
+        message: "The assistant returned an invalid response. Please retry.",
+      };
+    }
+
+    return {
+      code: "MODEL_UNAVAILABLE",
+      message: "The assistant is temporarily unavailable. Please retry.",
+    };
+  }
+
+  private logPlanValidation(planOutcome: PlanAttemptOutcome): void {
+    console.info(
+      JSON.stringify({
+        event: "plan_validation",
+        firstPassValid: planOutcome.firstPassValid,
+        repairAttempted: planOutcome.repairAttempted,
+      }),
+    );
   }
 
   private createErrorResponse(

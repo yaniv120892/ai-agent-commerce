@@ -2,8 +2,10 @@ import "server-only";
 
 import { getCatalogClient } from "@/app/api/catalog-dependencies";
 import { CatalogResolver } from "@/domain/catalog/catalog-resolver";
+import { PlanValidator } from "@/domain/catalog/plan-validator";
 import { ChatService } from "@/domain/chat/chat-service";
 import { OpenAIModelClient } from "@/domain/chat/openai-model-client";
+import { PlanRepairService } from "@/domain/chat/plan-repair-service";
 import { ReplyCompletionCache } from "@/domain/chat/reply-completion-cache";
 import { DeterministicModelClient } from "@/domain/testing/deterministic-clients";
 import { ConversationRepository } from "@/domain/conversations/conversation-repository";
@@ -46,10 +48,7 @@ const replyCompletionCache = new ReplyCompletionCache();
 
 export function getConversationApiDependencies(): ConversationApiDependencies {
   const conversationRepository = new ConversationRepository(prisma);
-  const catalogResolver = new CatalogResolver(
-    getCatalogClient(),
-    allowedCategorySlugs,
-  );
+  const catalogResolver = new CatalogResolver(getCatalogClient());
   const modelClient = environment.e2eMode
     ? new DeterministicModelClient()
     : new OpenAIModelClient({
@@ -59,13 +58,18 @@ export function getConversationApiDependencies(): ConversationApiDependencies {
         models: environment.openAiModels,
         timeoutMs: environment.openAiTimeoutMs,
       });
+  const planRepairService = new PlanRepairService(
+    modelClient,
+    new PlanValidator(allowedCategorySlugs),
+    allowedCategorySlugs,
+  );
 
   return {
     chatService: new ChatService(
       conversationRepository,
       catalogResolver,
       modelClient,
-      allowedCategorySlugs,
+      planRepairService,
       replyCompletionCache,
     ),
     conversationRepository,

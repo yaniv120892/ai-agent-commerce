@@ -4,6 +4,8 @@ import { performance } from "node:perf_hooks";
 
 import { deriveActiveContext } from "../src/domain/chat/active-context";
 import { CatalogResolver } from "../src/domain/catalog/catalog-resolver";
+import { PlanValidator } from "../src/domain/catalog/plan-validator";
+import { PlanRepairService } from "../src/domain/chat/plan-repair-service";
 import type {
   CatalogProduct,
   RetrievalIntent,
@@ -39,27 +41,36 @@ async function evaluateScenario(
   const products = selectFixtureCatalog(scenario);
   const history = createHistory(scenario.priorMessages, getFixtureProduct);
   const priorProductIds = collectPriorProductIds(history);
-  const resolver = new CatalogResolver(new FixtureCatalogClient(products), [
+  const allowedCategorySlugs = [
     ...new Set(products.map((product) => product.category)),
-  ]);
-  const modelClient = new DeterministicModelClient();
+  ];
+  const resolver = new CatalogResolver(new FixtureCatalogClient(products));
+  const planRepairService = new PlanRepairService(
+    new DeterministicModelClient(),
+    new PlanValidator(allowedCategorySlugs),
+    allowedCategorySlugs,
+  );
   const failures: string[] = [];
   let actualIntent: RetrievalIntent | null = null;
   let constraintChecks: Record<string, boolean> = {};
   let selectedProductIds: number[] = [];
   let planValid = false;
+  let firstPassPlanValid = false;
+  let repairAttempted = false;
 
   try {
-    const plan = await modelClient.createRetrievalPlan({
+    const planOutcome = await planRepairService.createValidPlan({
       activeContext: deriveActiveContext(history),
-      allowedCategorySlugs: [
-        ...new Set(products.map((product) => product.category)),
-      ],
       history,
       priorProductIds,
       userMessage: scenario.currentInput,
     });
-    const resolved = await resolver.resolve(plan, priorProductIds);
+    const plan = planOutcome.plan;
+
+    firstPassPlanValid = planOutcome.firstPassValid;
+    repairAttempted = planOutcome.repairAttempted;
+
+    const resolved = await resolver.resolve(plan);
     const selectedProducts = resolved.productCards.map((card) =>
       getFixtureProduct(card.productId),
     );
@@ -104,6 +115,7 @@ async function evaluateScenario(
     constraintChecks,
     expectedIntent: scenario.expectedIntent,
     failures,
+    firstPassPlanValid,
     groundedCards: selectedProductIds.every((productId) =>
       products.some((product) => product.id === productId),
     ),
@@ -111,6 +123,7 @@ async function evaluateScenario(
     latencyMs: Math.round((performance.now() - startedAt) * 100) / 100,
     name: scenario.name,
     planValid,
+    repairAttempted,
     selectedProductIds,
   };
 }
@@ -135,7 +148,11 @@ async function main(): Promise<void> {
     results,
     summary: {
       failed: results.filter((result) => result.failures.length > 0).length,
+      firstPassPlanValid: results.filter((result) => result.firstPassPlanValid)
+        .length,
       passed: results.filter((result) => result.failures.length === 0).length,
+      repairAttempted: results.filter((result) => result.repairAttempted)
+        .length,
       total: results.length,
     },
   };
