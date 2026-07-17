@@ -71,7 +71,7 @@ async function evaluateScenario(
     firstPassPlanValid = planOutcome.firstPassValid;
     repairAttempted = planOutcome.repairAttempted;
 
-    const resolved = await resolver.resolve(plan);
+    const resolved = await resolver.resolve(plan, allowedCategorySlugs);
     const selectedProducts = resolved.productCards.map((card) =>
       getFixtureProduct(card.productId),
     );

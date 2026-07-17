@@ -66,6 +66,8 @@ describe("ConversationRepository", () => {
     await repository.completeAssistantMessage({
       content: "These two chairs fit your request.",
       conversationId: conversation.id,
+      lastCategorySlug: "furniture",
+      lastSearchTerms: ["desk", "chair"],
       messageId: assistantMessage.id,
       retrievalAnchorMessage: "I need a desk chair.",
       productCards: [
@@ -118,6 +120,10 @@ describe("ConversationRepository", () => {
         title: "Second chair",
       },
     ]);
+    expect(resumedConversation?.messages[1]).toMatchObject({
+      lastCategorySlug: "furniture",
+      lastSearchTerms: ["desk", "chair"],
+    });
   });
 
   it("does not duplicate a user message when the same request ID is retried", async () => {

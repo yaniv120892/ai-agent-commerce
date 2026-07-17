@@ -93,6 +93,8 @@ export function createHistory(
     content: message.content,
     createdAt: `2026-07-17T00:00:0${index}.000Z`,
     id: `scenario-message-${index}`,
+    lastCategorySlug: null,
+    lastSearchTerms: [],
     productCards: message.productIds.map((productId) =>
       createProductCard(productId, getProduct),
     ),

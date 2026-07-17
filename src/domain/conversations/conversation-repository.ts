@@ -73,6 +73,8 @@ type CompleteAssistantMessageInput = {
   messageId: string;
   content: string;
   productCards: ProductCardSnapshot[];
+  lastSearchTerms: string[];
+  lastCategorySlug: string | null;
   retrievalAnchorMessage: string | null;
 };
 
@@ -233,6 +235,8 @@ export class ConversationRepository {
       const updatedMessage = await transaction.message.updateMany({
         data: {
           content: input.content,
+          lastCategorySlug: input.lastCategorySlug,
+          lastSearchTerms: input.lastSearchTerms,
           retrievalAnchorMessage: input.retrievalAnchorMessage,
           status: "complete",
         },
@@ -431,6 +435,8 @@ export class ConversationRepository {
       content: message.content,
       createdAt: message.createdAt.toISOString(),
       id: message.id,
+      lastCategorySlug: message.lastCategorySlug,
+      lastSearchTerms: message.lastSearchTerms,
       productCards: message.productCards.map((productCard) =>
         this.mapProductCard(productCard),
       ),

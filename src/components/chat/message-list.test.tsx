@@ -14,6 +14,8 @@ it("renders markdown emphasis in assistant replies instead of literal asterisks"
       content: "The best pick is **Huawei Matebook X Pro** at **$1,399.99**.",
       createdAt: "2026-07-17T10:00:00.000Z",
       id: "00000000-0000-4000-8000-000000000001",
+      lastCategorySlug: null,
+      lastSearchTerms: [],
       productCards: [],
       retrievalAnchorMessage: null,
       role: "assistant",

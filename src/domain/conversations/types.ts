@@ -18,6 +18,8 @@ export type PersistedMessage = {
   status: MessageStatus;
   createdAt: string;
   productCards: ProductCardSnapshot[];
+  lastSearchTerms: string[];
+  lastCategorySlug: string | null;
   retrievalAnchorMessage: string | null;
 };
 

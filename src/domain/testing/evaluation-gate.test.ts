@@ -13,11 +13,14 @@ function createResult(
     constraintChecks: {},
     expectedIntent: "search",
     failures,
+    firstPassPlanValid: true,
     groundedCards: true,
     intentMatches: failures.length === 0,
     latencyMs: 1,
     name,
+    plan: null,
     planValid: true,
+    repairAttempted: false,
     selectedProductIds: [],
   };
 }
