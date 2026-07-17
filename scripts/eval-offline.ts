@@ -27,6 +27,7 @@ import {
 import type {
   EvaluationCaseResult,
   Scenario,
+  ScenarioPlanSummary,
 } from "../src/domain/testing/scenario-evaluation";
 
 function selectFixtureCatalog(scenario: Scenario): CatalogProduct[] {
@@ -46,6 +47,7 @@ async function evaluateScenario(
   const modelClient = new DeterministicModelClient();
   const failures: string[] = [];
   let actualIntent: RetrievalIntent | null = null;
+  let capturedPlan: ScenarioPlanSummary | null = null;
   let constraintChecks: Record<string, boolean> = {};
   let selectedProductIds: number[] = [];
   let planValid = false;
@@ -66,6 +68,7 @@ async function evaluateScenario(
     );
 
     actualIntent = plan.intent;
+    capturedPlan = plan;
     planValid = true;
     selectedProductIds = resolved.productCards.map((card) => card.productId);
     constraintChecks = checkConstraints(scenario, plan, selectedProductIds);
@@ -111,6 +114,7 @@ async function evaluateScenario(
     intentMatches: actualIntent === scenario.expectedIntent,
     latencyMs: Math.round((performance.now() - startedAt) * 100) / 100,
     name: scenario.name,
+    plan: capturedPlan,
     planValid,
     selectedProductIds,
   };
