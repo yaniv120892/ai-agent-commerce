@@ -61,6 +61,7 @@ export class ChatService {
       );
     }
 
+    const title = await this.createConversationTitle(content);
     let conversation: PersistedConversation;
 
     try {
@@ -68,7 +69,7 @@ export class ChatService {
         await this.conversationRepository.createConversationWithPendingReply({
           clientRequestId: input.clientRequestId,
           content,
-          title: this.createConversationTitle(content),
+          title,
         });
     } catch {
       return this.createErrorResponse(
@@ -410,8 +411,14 @@ export class ChatService {
     return trimmedContent;
   }
 
-  private createConversationTitle(content: string): string {
-    return content.slice(0, 80);
+  private async createConversationTitle(content: string): Promise<string> {
+    try {
+      return await this.modelClient.createConversationTitle({
+        userMessage: content,
+      });
+    } catch {
+      return content.slice(0, 80);
+    }
   }
 
   private createErrorResponse(
