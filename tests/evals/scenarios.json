@@ -376,5 +376,28 @@
     "expectedIntent": "search",
     "requiredConstraints": { "searchTerm": "phone" },
     "forbiddenBehavior": ["ungrounded_cards"]
+  },
+  {
+    "name": "bare_attribute_follow_up_loses_focused_product",
+    "priorMessages": [
+      {
+        "role": "user",
+        "content": "Tell me about the Orbit Phone Mini",
+        "productIds": []
+      },
+      {
+        "role": "assistant",
+        "content": "Here is the Orbit Phone Mini.",
+        "productIds": [101]
+      }
+    ],
+    "currentInput": "size",
+    "fixtureCatalog": { "productIds": [101] },
+    "expectedIntent": "product_detail",
+    "requiredConstraints": {
+      "referencedProductIds": [101],
+      "selectedProductIds": [101]
+    },
+    "forbiddenBehavior": ["ungrounded_cards"]
   }
 ]
