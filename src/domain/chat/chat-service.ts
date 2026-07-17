@@ -20,6 +20,7 @@ import {
   type AppendMessageInput,
   type ChatErrorCode,
   type ChatResponse,
+  type CompletedRetrievalSummary,
   type ModelClient,
   type PlanAttemptOutcome,
   type StartConversationInput,
@@ -204,6 +205,7 @@ export class ChatService {
         assistantMessage,
         cachedCompletion.content,
         cachedCompletion.productCards,
+        cachedCompletion.retrievalSummary,
       );
     }
 
@@ -294,13 +296,17 @@ export class ChatService {
         assistantMessage,
         plan.assistantMessage,
         [],
+        { categorySlug: null, searchTerms: [] },
       );
     }
 
     let productCards: ProductCardSnapshot[];
 
     try {
-      const result = await this.catalogResolver.resolve(plan);
+      const result = await this.catalogResolver.resolve(
+        plan,
+        allowedCategorySlugs,
+      );
       productCards = result.productCards;
     } catch (error) {
       if (
@@ -345,6 +351,7 @@ export class ChatService {
       assistantMessage,
       content,
       productCards,
+      { categorySlug: plan.categorySlug, searchTerms: plan.searchTerms },
     );
   }
 
@@ -381,12 +388,15 @@ export class ChatService {
     assistantMessage: PersistedMessage,
     content: string,
     productCards: ProductCardSnapshot[],
+    retrievalSummary: CompletedRetrievalSummary,
   ): Promise<ChatResponse> {
     try {
       const completedAssistantMessage =
         await this.conversationRepository.completeAssistantMessage({
           content,
           conversationId,
+          lastCategorySlug: retrievalSummary.categorySlug,
+          lastSearchTerms: retrievalSummary.searchTerms,
           messageId: assistantMessage.id,
           productCards,
         });
@@ -401,6 +411,7 @@ export class ChatService {
       this.replyCompletionCache.set(conversationId, assistantMessage.id, {
         content,
         productCards,
+        retrievalSummary,
       });
 
       return this.failAssistantMessage(

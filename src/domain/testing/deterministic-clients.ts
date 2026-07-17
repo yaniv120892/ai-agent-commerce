@@ -165,6 +165,27 @@ export class DeterministicModelClient implements ModelClient {
       );
     }
 
+    const retryCategorySlug =
+      input.activeContext?.lastAttemptedSearch?.categorySlug;
+
+    if (
+      retryCategorySlug !== undefined &&
+      retryCategorySlug !== null &&
+      this.isAgreement(normalizedMessage)
+    ) {
+      return {
+        assistantMessage: null,
+        categorySlug: retryCategorySlug,
+        inStock: null,
+        intent: "browse_category",
+        maxPrice: null,
+        minRating: null,
+        referencedProductIds: [],
+        searchTerms: [],
+        sort: "relevance",
+      };
+    }
+
     if (normalizedMessage.includes("compare")) {
       return this.createComparisonPlan(input.priorProductIds);
     }
@@ -222,7 +243,7 @@ export class DeterministicModelClient implements ModelClient {
 
     return {
       assistantMessage: null,
-      categorySlug: null,
+      categorySlug: categorySlug ?? input.activeContext?.categorySlug ?? null,
       inStock: normalizedMessage.includes("in stock") ? true : null,
       intent: "search",
       maxPrice: this.findMaximumPrice(normalizedMessage),
@@ -399,6 +420,19 @@ export class DeterministicModelClient implements ModelClient {
 
   private hasMultipleRequests(value: string): boolean {
     return value.includes(" and ") && this.findCategory(value) !== null;
+  }
+
+  private isAgreement(value: string): boolean {
+    return [
+      "do it",
+      "sure",
+      "yes",
+      "yeah",
+      "ok",
+      "okay",
+      "go ahead",
+      "try that",
+    ].some((phrase) => value.includes(phrase));
   }
 
   private hasSearchIntent(value: string): boolean {

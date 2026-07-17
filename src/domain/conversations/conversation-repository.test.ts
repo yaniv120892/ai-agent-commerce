@@ -167,6 +167,8 @@ describe("ConversationRepository", () => {
       conversationId: "conversation-id",
       messageId: "assistant-message-id",
       content: "Here are two options.",
+      lastCategorySlug: null,
+      lastSearchTerms: ["first", "second"],
       productCards: [
         {
           productId: 101,
@@ -193,6 +195,8 @@ describe("ConversationRepository", () => {
     expect(message.updateMany).toHaveBeenCalledWith({
       data: {
         content: "Here are two options.",
+        lastCategorySlug: null,
+        lastSearchTerms: ["first", "second"],
         status: "complete",
       },
       where: {

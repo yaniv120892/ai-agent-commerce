@@ -57,6 +57,7 @@ async function main(): Promise<void> {
   };
   const firstResolved = await catalogResolver.resolve(
     planValidator.validate(firstPlan, []),
+    allowedCategorySlugs,
   );
 
   console.log(
@@ -79,6 +80,8 @@ async function main(): Promise<void> {
       content: "ma shoes",
       createdAt: new Date().toISOString(),
       id: "verify-user-1",
+      lastCategorySlug: null,
+      lastSearchTerms: [],
       productCards: [],
       role: "user",
       status: "complete",
@@ -87,6 +90,8 @@ async function main(): Promise<void> {
       content: "Here are some mens-shoes options.",
       createdAt: new Date().toISOString(),
       id: "verify-assistant-1",
+      lastCategorySlug: "mens-shoes",
+      lastSearchTerms: [],
       productCards: firstResolved.productCards,
       role: "assistant",
       status: "complete",
@@ -117,6 +122,7 @@ async function main(): Promise<void> {
   if (!regressed) {
     const secondResolved = await catalogResolver.resolve(
       planValidator.validate(secondPlan, priorProductIds),
+      allowedCategorySlugs,
     );
 
     console.log(

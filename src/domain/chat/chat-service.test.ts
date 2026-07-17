@@ -51,6 +51,8 @@ function createMessage(
     content: "Find me a phone",
     createdAt: "2026-07-16T10:00:00.000Z",
     id: "user-message-id",
+    lastCategorySlug: null,
+    lastSearchTerms: [],
     productCards: [],
     role: "user",
     status: "complete",
@@ -175,13 +177,15 @@ describe("ChatService", () => {
     ).toHaveBeenCalledWith({
       content: "Phone Ultra is a match.",
       conversationId: "conversation-id",
+      lastCategorySlug: null,
+      lastSearchTerms: ["phone"],
       messageId: "assistant-message-id",
       productCards,
     });
-    expect(catalogResolver.resolve).toHaveBeenCalledWith({
-      ...createPlan(),
-      validated: true,
-    });
+    expect(catalogResolver.resolve).toHaveBeenCalledWith(
+      { ...createPlan(), validated: true },
+      ["smartphones"],
+    );
   });
 
   it("truncates an overlong first message into the persisted title", async () => {
@@ -535,12 +539,15 @@ describe("ChatService", () => {
 
     expect(modelClient.createRetrievalPlan).toHaveBeenCalledWith(
       expect.objectContaining({
-        activeContext: { categorySlug: "smartphones" },
+        activeContext: {
+          categorySlug: "smartphones",
+          lastAttemptedSearch: null,
+        },
       }),
     );
   });
 
-  it("does not carry forward a category when the last resolved reply spans mixed categories", async () => {
+  it("carries forward the dominant category when the last resolved reply spans mixed categories", async () => {
     const {
       catalogResolver,
       conversationRepository,
@@ -553,6 +560,7 @@ describe("ChatService", () => {
         id: "message-0",
         productCards: [
           { ...productCards[0], category: "smartphones", productId: 101 },
+          { ...productCards[0], category: "smartphones", productId: 102 },
           { ...productCards[0], category: "laptops", productId: 201 },
         ],
         role: "assistant",
@@ -576,7 +584,96 @@ describe("ChatService", () => {
     });
 
     expect(modelClient.createRetrievalPlan).toHaveBeenCalledWith(
-      expect.objectContaining({ activeContext: { categorySlug: null } }),
+      expect.objectContaining({
+        activeContext: {
+          categorySlug: "smartphones",
+          lastAttemptedSearch: null,
+        },
+      }),
+    );
+  });
+
+  it("persists the plan's search terms and category on a zero-result completion", async () => {
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
+    vi.mocked(modelClient.createRetrievalPlan).mockResolvedValue(
+      createPlan({
+        categorySlug: "smartphones",
+        searchTerms: ["purple", "phone"],
+      }),
+    );
+    catalogResolver.resolve.mockResolvedValue({ productCards: [] });
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      planRepairService,
+    );
+
+    await service.startConversation({
+      clientRequestId: "request-id",
+      requestId: "request-id",
+      content: "I want a purple phone",
+    });
+
+    expect(
+      conversationRepository.completeAssistantMessage,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastCategorySlug: "smartphones",
+        lastSearchTerms: ["purple", "phone"],
+      }),
+    );
+  });
+
+  it("surfaces the previous zero-result search as lastAttemptedSearch for the next turn", async () => {
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
+    const history = [
+      createMessage({ content: "I want a purple phone", id: "message-0" }),
+      createMessage({
+        content: "I could not find a matching catalog product.",
+        id: "message-1",
+        lastSearchTerms: ["purple", "phone"],
+        productCards: [],
+        role: "assistant",
+      }),
+    ];
+    conversationRepository.getConversation.mockResolvedValue(
+      createConversation(history),
+    );
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      planRepairService,
+    );
+
+    await service.appendMessage({
+      clientRequestId: "request-id",
+      requestId: "request-id",
+      content: "just do it",
+      conversationId: "conversation-id",
+    });
+
+    expect(modelClient.createRetrievalPlan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeContext: {
+          categorySlug: null,
+          lastAttemptedSearch: {
+            categorySlug: null,
+            searchTerms: ["purple", "phone"],
+          },
+        },
+      }),
     );
   });
 
@@ -1059,7 +1156,7 @@ describe("OpenAIModelClient", () => {
     });
 
     const plan = await client.createRetrievalPlan({
-      activeContext: { categorySlug: "smartphones" },
+      activeContext: { categorySlug: "smartphones", lastAttemptedSearch: null },
       allowedCategorySlugs: ["smartphones"],
       history: [createMessage()],
       priorProductIds: [101],
@@ -1149,7 +1246,7 @@ describe("OpenAIModelClient", () => {
 
     await expect(
       client.createRetrievalPlan({
-        activeContext: { categorySlug: null },
+        activeContext: { categorySlug: null, lastAttemptedSearch: null },
         allowedCategorySlugs: ["smartphones"],
         history: [],
         priorProductIds: [],

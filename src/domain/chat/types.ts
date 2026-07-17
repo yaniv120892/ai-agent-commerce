@@ -6,7 +6,18 @@ import type {
 
 export type { RetrievalPlan, ValidatedRetrievalPlan } from "../catalog/types";
 
+export type LastAttemptedSearch = {
+  searchTerms: string[];
+  categorySlug: string | null;
+};
+
 export type ActiveRetrievalContext = {
+  categorySlug: string | null;
+  lastAttemptedSearch: LastAttemptedSearch | null;
+};
+
+export type CompletedRetrievalSummary = {
+  searchTerms: string[];
   categorySlug: string | null;
 };
 

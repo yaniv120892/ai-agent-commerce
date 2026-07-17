@@ -20,6 +20,8 @@ const conversation: PersistedConversation = {
       content: "I found a phone that matches your budget.",
       createdAt: "2026-07-17T10:00:01.000Z",
       id: "00000000-0000-4000-8000-000000000002",
+      lastCategorySlug: null,
+      lastSearchTerms: [],
       productCards: [
         {
           category: "smartphones",
