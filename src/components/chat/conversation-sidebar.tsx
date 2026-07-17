@@ -68,6 +68,9 @@ export function ConversationSidebar({
         onClick={onNewConversation}
         type="button"
       >
+        <span aria-hidden="true" className="new-conversation-button__icon">
+          +
+        </span>
         New conversation
       </button>
       <nav aria-label="Recent conversations">
@@ -79,6 +82,7 @@ export function ConversationSidebar({
                 aria-current={
                   conversation.id === activeConversationId ? "page" : undefined
                 }
+                className="conversation-sidebar__link"
                 href={`/conversations/${conversation.id}`}
                 onClick={onConversationNavigate}
               >
