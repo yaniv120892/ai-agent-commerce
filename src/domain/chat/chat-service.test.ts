@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { RetrievalPlan } from "@/domain/catalog/types";
+import { CONVERSATION_TITLE_MAX_LENGTH } from "@/domain/conversations/constants";
 import type {
   PersistedConversation,
   PersistedMessage,
@@ -97,7 +98,6 @@ function createDependencies() {
     resolve: vi.fn().mockResolvedValue({ productCards }),
   };
   const modelClient: ModelClient = {
-    createConversationTitle: vi.fn().mockResolvedValue("Phone shopping help"),
     createGroundedReply: vi.fn().mockResolvedValue("Phone Ultra is a match."),
     createRetrievalPlan: vi.fn().mockResolvedValue(createPlan()),
   };
@@ -130,15 +130,12 @@ describe("ChatService", () => {
       conversationId: "conversation-id",
       status: "complete",
     });
-    expect(modelClient.createConversationTitle).toHaveBeenCalledWith({
-      userMessage: "Find me a phone",
-    });
     expect(
       conversationRepository.createConversationWithPendingReply,
     ).toHaveBeenCalledWith({
       clientRequestId: "request-id",
       content: "Find me a phone",
-      title: "Phone shopping help",
+      title: "Find me a phone",
     });
     expect(modelClient.createRetrievalPlan).toHaveBeenCalledAfter(
       conversationRepository.createConversationWithPendingReply,
@@ -166,10 +163,35 @@ describe("ChatService", () => {
     expect(catalogResolver.resolve).toHaveBeenCalledWith(createPlan(), []);
   });
 
-  it("falls back to a truncated title when title generation fails", async () => {
+  it("truncates an overlong first message into the persisted title", async () => {
     const { catalogResolver, conversationRepository, modelClient } =
       createDependencies();
-    vi.mocked(modelClient.createConversationTitle).mockRejectedValue(
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      ["smartphones"],
+    );
+    const content = "a".repeat(CONVERSATION_TITLE_MAX_LENGTH + 40);
+
+    await service.startConversation({
+      clientRequestId: "request-id",
+      content,
+    });
+
+    expect(
+      conversationRepository.createConversationWithPendingReply,
+    ).toHaveBeenCalledWith({
+      clientRequestId: "request-id",
+      content,
+      title: "a".repeat(CONVERSATION_TITLE_MAX_LENGTH),
+    });
+  });
+
+  it("persists the conversation before any model call, even when the model is unavailable", async () => {
+    const { catalogResolver, conversationRepository, modelClient } =
+      createDependencies();
+    vi.mocked(modelClient.createRetrievalPlan).mockRejectedValue(
       new Error("model unavailable"),
     );
     const service = new ChatService(
@@ -179,7 +201,7 @@ describe("ChatService", () => {
       ["smartphones"],
     );
 
-    await service.startConversation({
+    const response = await service.startConversation({
       clientRequestId: "request-id",
       content: "  Find me a phone  ",
     });
@@ -190,6 +212,11 @@ describe("ChatService", () => {
       clientRequestId: "request-id",
       content: "Find me a phone",
       title: "Find me a phone",
+    });
+    expect(response).toMatchObject({
+      conversationId: "conversation-id",
+      error: { code: "MODEL_UNAVAILABLE" },
+      status: "error",
     });
   });
 
@@ -674,33 +701,6 @@ describe("OpenAIModelClient", () => {
     );
     expect(create.mock.calls[0][0].input[1].content).toContain(
       JSON.stringify(productCards),
-    );
-  });
-
-  it("requests a short title and truncates an overlong response", async () => {
-    const create = vi.fn().mockResolvedValue({
-      output_text: `  ${"Cheapest smartphones under budget ".repeat(3)}  `,
-    });
-    const client = new OpenAIModelClient("test-key", {
-      responses: {
-        create,
-        parse: vi.fn(),
-      },
-    });
-
-    const title = await client.createConversationTitle({
-      userMessage: "What is the cheapest phone you have?",
-    });
-
-    expect(title).toHaveLength(60);
-    expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ model: "gpt-5.4-mini" }),
-    );
-    expect(create.mock.calls[0][0].input[0].content).toContain(
-      "short conversation title",
-    );
-    expect(create.mock.calls[0][0].input[1].content).toBe(
-      "What is the cheapest phone you have?",
     );
   });
 });
