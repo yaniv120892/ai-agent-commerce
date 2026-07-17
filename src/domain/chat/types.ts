@@ -1,13 +1,18 @@
-import type { RetrievalPlan } from "../catalog/types";
+import type { RetrievalPlan, ValidatedRetrievalPlan } from "../catalog/types";
 import type {
   PersistedMessage,
   ProductCardSnapshot,
 } from "../conversations/types";
 
-export type { RetrievalPlan } from "../catalog/types";
+export type { RetrievalPlan, ValidatedRetrievalPlan } from "../catalog/types";
 
 export type ActiveRetrievalContext = {
   categorySlug: string | null;
+};
+
+export type PlanRepairContext = {
+  rejectedPlan: RetrievalPlan;
+  validationError: string;
 };
 
 export type ModelPlanInput = {
@@ -16,6 +21,15 @@ export type ModelPlanInput = {
   allowedCategorySlugs: string[];
   priorProductIds: number[];
   activeContext: ActiveRetrievalContext | null;
+  repairContext: PlanRepairContext | null;
+};
+
+export type PlanRequestInput = Omit<ModelPlanInput, "repairContext">;
+
+export type PlanAttemptOutcome = {
+  plan: ValidatedRetrievalPlan;
+  firstPassValid: boolean;
+  repairAttempted: boolean;
 };
 
 export type ModelReplyInput = {

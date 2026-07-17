@@ -52,12 +52,14 @@ export type EvaluationCaseResult = {
   constraintChecks: Record<string, boolean>;
   expectedIntent: RetrievalIntent;
   failures: string[];
+  firstPassPlanValid: boolean;
   groundedCards: boolean;
   intentMatches: boolean;
   latencyMs: number;
   name: string;
   plan: ScenarioPlanSummary | null;
   planValid: boolean;
+  repairAttempted: boolean;
   selectedProductIds: number[];
 };
 
@@ -69,9 +71,11 @@ export type EvaluationSpendSummary = {
 export type EvaluationSummary = {
   blockingReasons: string[];
   failed: number;
+  firstPassPlanValid: number;
   passRate: number;
   passed: number;
   quarantined: number;
+  repairAttempted: number;
   total: number;
 };
 

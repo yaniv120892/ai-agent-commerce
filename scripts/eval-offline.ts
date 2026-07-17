@@ -2,6 +2,8 @@ import { performance } from "node:perf_hooks";
 
 import { deriveActiveContext } from "../src/domain/chat/active-context";
 import { CatalogResolver } from "../src/domain/catalog/catalog-resolver";
+import { PlanValidator } from "../src/domain/catalog/plan-validator";
+import { PlanRepairService } from "../src/domain/chat/plan-repair-service";
 import type {
   CatalogProduct,
   RetrievalIntent,
@@ -42,24 +44,34 @@ async function evaluateScenario(
   const history = createHistory(scenario.priorMessages, getFixtureProduct);
   const priorProductIds = collectPriorProductIds(history);
   const resolver = new CatalogResolver(new FixtureCatalogClient(products));
-  const modelClient = new DeterministicModelClient();
+  const planRepairService = new PlanRepairService(
+    new DeterministicModelClient(),
+    (allowedCategorySlugs) => new PlanValidator(allowedCategorySlugs),
+  );
   const failures: string[] = [];
   let actualIntent: RetrievalIntent | null = null;
   let capturedPlan: ScenarioPlanSummary | null = null;
   let constraintChecks: Record<string, boolean> = {};
   let selectedProductIds: number[] = [];
   let planValid = false;
+  let firstPassPlanValid = false;
+  let repairAttempted = false;
 
   try {
     const allowedCategorySlugs = await resolver.listAllowedCategorySlugs();
-    const plan = await modelClient.createRetrievalPlan({
+    const planOutcome = await planRepairService.createValidPlan({
       activeContext: deriveActiveContext(history),
       allowedCategorySlugs,
       history,
       priorProductIds,
       userMessage: scenario.currentInput,
     });
-    const resolved = await resolver.resolve(plan, priorProductIds);
+    const plan = planOutcome.plan;
+
+    firstPassPlanValid = planOutcome.firstPassValid;
+    repairAttempted = planOutcome.repairAttempted;
+
+    const resolved = await resolver.resolve(plan);
     const selectedProducts = resolved.productCards.map((card) =>
       getFixtureProduct(card.productId),
     );
@@ -105,6 +117,7 @@ async function evaluateScenario(
     constraintChecks,
     expectedIntent: scenario.expectedIntent,
     failures,
+    firstPassPlanValid,
     groundedCards: selectedProductIds.every((productId) =>
       products.some((product) => product.id === productId),
     ),
@@ -113,6 +126,7 @@ async function evaluateScenario(
     name: scenario.name,
     plan: capturedPlan,
     planValid,
+    repairAttempted,
     selectedProductIds,
   };
 }
