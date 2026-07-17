@@ -52,7 +52,12 @@ export function getConversationApiDependencies(): ConversationApiDependencies {
   );
   const modelClient = environment.e2eMode
     ? new DeterministicModelClient()
-    : new OpenAIModelClient(environment.openAiApiKey);
+    : new OpenAIModelClient({
+        apiKey: environment.openAiApiKey,
+        maxOutputTokens: environment.openAiMaxOutputTokens,
+        maxRetries: environment.openAiMaxRetries,
+        timeoutMs: environment.openAiTimeoutMs,
+      });
 
   return {
     chatService: new ChatService(
