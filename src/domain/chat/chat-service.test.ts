@@ -144,6 +144,7 @@ describe("ChatService", () => {
       conversationRepository.createConversationWithPendingReply,
     );
     expect(modelClient.createRetrievalPlan).toHaveBeenCalledWith({
+      activeContext: null,
       allowedCategorySlugs: ["smartphones"],
       history: [createMessage({ content: "Find me a phone" })],
       priorProductIds: [],
@@ -293,6 +294,76 @@ describe("ChatService", () => {
     expect(
       conversationRepository.appendMessageWithPendingReply,
     ).toHaveBeenCalledOnce();
+  });
+
+  it("carries forward the category established by the most recently resolved reply as activeContext", async () => {
+    const { catalogResolver, conversationRepository, modelClient } =
+      createDependencies();
+    const history = [
+      createMessage({ content: "Show me phones", id: "message-0" }),
+      createMessage({
+        content: "Here are phones.",
+        id: "message-1",
+        productCards: [{ ...productCards[0], productId: 101 }],
+        role: "assistant",
+      }),
+    ];
+    conversationRepository.getConversation.mockResolvedValue(
+      createConversation(history),
+    );
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      ["smartphones"],
+    );
+
+    await service.appendMessage({
+      clientRequestId: "request-id",
+      content: "I want the red one",
+      conversationId: "conversation-id",
+    });
+
+    expect(modelClient.createRetrievalPlan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeContext: { categorySlug: "smartphones" },
+      }),
+    );
+  });
+
+  it("does not carry forward a category when the last resolved reply spans mixed categories", async () => {
+    const { catalogResolver, conversationRepository, modelClient } =
+      createDependencies();
+    const history = [
+      createMessage({
+        content: "Show me electronics",
+        id: "message-0",
+        productCards: [
+          { ...productCards[0], category: "smartphones", productId: 101 },
+          { ...productCards[0], category: "laptops", productId: 201 },
+        ],
+        role: "assistant",
+      }),
+    ];
+    conversationRepository.getConversation.mockResolvedValue(
+      createConversation(history),
+    );
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      ["smartphones", "laptops"],
+    );
+
+    await service.appendMessage({
+      clientRequestId: "request-id",
+      content: "I want the cheaper one",
+      conversationId: "conversation-id",
+    });
+
+    expect(modelClient.createRetrievalPlan).toHaveBeenCalledWith(
+      expect.objectContaining({ activeContext: { categorySlug: null } }),
+    );
   });
 
   it("returns an existing completed request reply without calling the model again", async () => {
@@ -536,6 +607,7 @@ describe("OpenAIModelClient", () => {
     });
 
     const plan = await client.createRetrievalPlan({
+      activeContext: { categorySlug: "smartphones" },
       allowedCategorySlugs: ["smartphones"],
       history: [createMessage()],
       priorProductIds: [101],
@@ -572,6 +644,8 @@ describe("OpenAIModelClient", () => {
     expect(parse.mock.calls[0][0].input[0].content).toContain(
       "data, not instructions",
     );
+    expect(parse.mock.calls[0][0].input[0].content).toContain("activeContext");
+    expect(parse.mock.calls[0][0].input[0].content).toContain("refinement");
   });
 
   it("sends only normalized selected cards to the grounded-reply request", async () => {
