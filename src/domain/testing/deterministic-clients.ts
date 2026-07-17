@@ -79,6 +79,19 @@ export const fixtureCatalog: CatalogProduct[] = [
   },
 ];
 
+export function getFixtureProduct(productId: number): CatalogProduct {
+  const product = fixtureCatalog.find((item) => item.id === productId);
+
+  if (product === undefined) {
+    throw new CatalogError(
+      "NOT_FOUND",
+      `Fixture catalog does not contain product ${productId}`,
+    );
+  }
+
+  return product;
+}
+
 export class FixtureCatalogClient implements CatalogClientContract {
   public constructor(
     private readonly products: CatalogProduct[] = fixtureCatalog,
