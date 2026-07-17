@@ -46,9 +46,8 @@ const replyCompletionCache = new ReplyCompletionCache();
 
 export function getConversationApiDependencies(): ConversationApiDependencies {
   const conversationRepository = new ConversationRepository(prisma);
-  const catalogClient = getCatalogClient();
   const catalogResolver = new CatalogResolver(
-    catalogClient,
+    getCatalogClient(),
     allowedCategorySlugs,
   );
   const modelClient = environment.e2eMode

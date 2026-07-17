@@ -31,6 +31,31 @@ it("rejects a DummyJSON URL on an unapproved host", () => {
   ).toThrow("DUMMYJSON_BASE_URL");
 });
 
+it("rejects an invalid REDIS_URL", () => {
+  expect(() =>
+    createEnvironment({
+      DATABASE_URL: "postgresql://localhost/ai_commerce",
+      OPENAI_API_KEY: "test-key",
+      REDIS_URL: "not-a-url",
+    }),
+  ).toThrow("REDIS_URL");
+});
+
+it("applies default REDIS_URL and catalog cache TTLs when unset", () => {
+  const parsedEnvironment = createEnvironment({
+    DATABASE_URL: "postgresql://localhost/ai_commerce",
+    OPENAI_API_KEY: "test-key",
+  }) as {
+    redisUrl: string;
+    catalogCacheListTtlSeconds: number;
+    catalogCacheDetailTtlSeconds: number;
+  };
+
+  expect(parsedEnvironment.redisUrl).toBe("redis://localhost:6379");
+  expect(parsedEnvironment.catalogCacheListTtlSeconds).toBe(300);
+  expect(parsedEnvironment.catalogCacheDetailTtlSeconds).toBe(1800);
+});
+
 it("rejects E2E mode outside development", () => {
   expect(() =>
     createEnvironment({

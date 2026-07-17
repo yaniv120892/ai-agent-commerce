@@ -33,6 +33,25 @@
     "forbiddenBehavior": ["over_budget", "ungrounded_cards"]
   },
   {
+    "name": "category_attribute_refinement",
+    "priorMessages": [
+      { "role": "user", "content": "Show me phones", "productIds": [] },
+      {
+        "role": "assistant",
+        "content": "Here are phones.",
+        "productIds": [101, 102, 103]
+      }
+    ],
+    "currentInput": "I want the mini one",
+    "fixtureCatalog": { "productIds": [101, 102, 103] },
+    "expectedIntent": "search",
+    "requiredConstraints": {
+      "searchTerm": "phone",
+      "selectedProductIds": [101]
+    },
+    "forbiddenBehavior": ["over_budget", "ungrounded_cards"]
+  },
+  {
     "name": "ordinal_detail",
     "priorMessages": [
       { "role": "user", "content": "Show me phones", "productIds": [] },
