@@ -31,6 +31,17 @@ it("rejects a DummyJSON URL on an unapproved host", () => {
   ).toThrow("DUMMYJSON_BASE_URL");
 });
 
+it("rejects E2E mode outside development", () => {
+  expect(() =>
+    createEnvironment({
+      DATABASE_URL: "postgresql://localhost/ai_commerce",
+      E2E_MODE: "true",
+      NODE_ENV: "production",
+      OPENAI_API_KEY: "test-key",
+    }),
+  ).toThrow("E2E_MODE");
+});
+
 it("marks the environment module as server-only", () => {
   const environmentModuleSource = readFileSync(
     resolve(process.cwd(), "src/lib/env.ts"),
