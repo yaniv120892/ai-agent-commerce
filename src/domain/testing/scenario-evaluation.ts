@@ -48,6 +48,7 @@ export function createHistory(
     productCards: message.productIds.map((productId) =>
       createProductCard(productId, getProduct),
     ),
+    retrievalAnchorMessage: null,
     role: message.role,
     status: "complete",
   }));

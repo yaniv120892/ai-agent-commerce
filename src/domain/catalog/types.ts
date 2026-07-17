@@ -32,6 +32,7 @@ export type RetrievalPlan = {
   minRating: number | null;
   inStock: boolean | null;
   sort: CatalogSort;
+  isContinuation: boolean;
   referencedProductIds: number[];
   assistantMessage: string | null;
 };

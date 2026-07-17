@@ -8,6 +8,7 @@ export type { RetrievalPlan, ValidatedRetrievalPlan } from "../catalog/types";
 
 export type ActiveRetrievalContext = {
   categorySlug: string | null;
+  lastResolvedUserMessage: string | null;
 };
 
 export type PlanRepairContext = {
