@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node --require dotenv/config node_modules/next/dist/bin/next dev",
     "build": "next build",
     "start": "next start",
     "postinstall": "prisma generate",
@@ -19,7 +19,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "eval:offline": "tsx scripts/eval-offline.ts",
-    "eval:online": "tsx scripts/eval-online.ts"
+    "eval:online": "tsx scripts/eval-online.ts",
+    "worktree:setup": "tsx scripts/setup-worktree-env.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
