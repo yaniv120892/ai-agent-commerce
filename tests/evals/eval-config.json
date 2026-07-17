@@ -1,0 +1,35 @@
+{
+  "offline": {
+    "minimumPassRate": 1,
+    "mustPassScenarios": [],
+    "expectedFailures": []
+  },
+  "online": {
+    "minimumPassRate": 0.85,
+    "mustPassScenarios": ["off_catalog", "prompt_injection"],
+    "expectedFailures": [],
+    "maxScenarios": 20,
+    "spend": {
+      "maxUsd": 1.5,
+      "pricingSource": "https://developers.openai.com/api/docs/pricing",
+      "pricing": {
+        "gpt-5.4": {
+          "inputUsdPerMillionTokens": 2.5,
+          "outputUsdPerMillionTokens": 15
+        },
+        "gpt-5.4-mini": {
+          "inputUsdPerMillionTokens": 0.75,
+          "outputUsdPerMillionTokens": 4.5
+        },
+        "gpt-5.4-nano": {
+          "inputUsdPerMillionTokens": 0.2,
+          "outputUsdPerMillionTokens": 1.25
+        },
+        "gpt-5.4-pro": {
+          "inputUsdPerMillionTokens": 30,
+          "outputUsdPerMillionTokens": 180
+        }
+      }
+    }
+  }
+}
