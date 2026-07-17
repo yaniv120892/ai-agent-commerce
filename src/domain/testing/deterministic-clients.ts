@@ -142,6 +142,9 @@ export class FixtureCatalogClient implements CatalogClientContract {
   }
 }
 
+// Ignores input.repairContext: this fake only ever emits plans that pass
+// PlanValidator, so the repair path is unreachable here by construction.
+// PlanRepairService's own tests cover repair with purpose-built stubs.
 export class DeterministicModelClient implements ModelClient {
   public async createRetrievalPlan(
     input: ModelPlanInput,

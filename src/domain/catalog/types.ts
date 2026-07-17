@@ -36,6 +36,10 @@ export type RetrievalPlan = {
   assistantMessage: string | null;
 };
 
+export type ValidatedRetrievalPlan = RetrievalPlan & {
+  readonly validated: true;
+};
+
 export type ResolvedCatalogResult = {
   productCards: ProductCardSnapshot[];
 };
