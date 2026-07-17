@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducer } from "react";
+import { useEffect, useReducer, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 import { ChatComposer } from "./chat-composer";
@@ -14,21 +14,39 @@ import type {
   PendingRequest,
   PersistedConversation,
   PersistedMessage,
+  ProductCardSnapshot,
 } from "./types";
 
 type ChatShellProperties = {
   initialConversation: PersistedConversation | null;
 };
 
-type ApiErrorResponse = {
-  error?: ChatError;
-};
+const chatErrorCodes: ChatError["code"][] = [
+  "CATALOG_UNAVAILABLE",
+  "INVALID_MESSAGE",
+  "INVALID_RETRIEVAL_PLAN",
+  "MODEL_UNAVAILABLE",
+  "PERSISTENCE_UNAVAILABLE",
+  "UNKNOWN_CONVERSATION",
+];
+
+const messageRoles = ["user", "assistant"] as const;
+const messageStatuses = ["pending", "complete", "failed"] as const;
+const maximumPollAttempts = 5;
+const pollIntervalMs = 500;
 
 function chatReducer(state: ChatUiState, action: ChatUiAction): ChatUiState {
   switch (action.type) {
     case "send": {
       return {
         conversation: state.conversation,
+        pendingRequest: action.request,
+        status: "sending",
+      };
+    }
+    case "pending": {
+      return {
+        conversation: action.conversation,
         pendingRequest: action.request,
         status: "sending",
       };
@@ -62,6 +80,13 @@ function chatReducer(state: ChatUiState, action: ChatUiAction): ChatUiState {
     case "newConversation": {
       return {
         conversation: null,
+        pendingRequest: null,
+        status: "idle",
+      };
+    }
+    case "synchronize": {
+      return {
+        conversation: action.conversation,
         pendingRequest: null,
         status: "idle",
       };
@@ -101,28 +126,129 @@ function createConversation(
   assistantMessage: PersistedMessage,
 ): PersistedConversation {
   const now = new Date().toISOString();
-  const messages = existingConversation
-    ? existingConversation.messages
-    : [createLocalUserMessage(content, requestId)];
+  const existingMessages = existingConversation?.messages ?? [];
 
   return {
     createdAt: existingConversation?.createdAt ?? now,
     id: conversationId,
-    messages: [...messages, assistantMessage],
+    messages: [
+      ...existingMessages,
+      createLocalUserMessage(content, requestId),
+      assistantMessage,
+    ],
     title: existingConversation?.title ?? content.slice(0, 60),
     updatedAt: now,
   };
 }
 
-function parseChatError(payload: unknown): ChatError {
-  const error = (payload as ApiErrorResponse).error;
+function createPersistenceError(message: string): ChatError {
+  return {
+    code: "PERSISTENCE_UNAVAILABLE",
+    message,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isProductCardSnapshot(value: unknown): value is ProductCardSnapshot {
+  return (
+    isRecord(value) &&
+    typeof value.productId === "number" &&
+    typeof value.title === "string" &&
+    typeof value.shortDescription === "string" &&
+    typeof value.price === "number" &&
+    typeof value.imageUrl === "string" &&
+    typeof value.category === "string" &&
+    (typeof value.rating === "number" || value.rating === null)
+  );
+}
+
+function isPersistedMessage(value: unknown): value is PersistedMessage {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.content === "string" &&
+    typeof value.createdAt === "string" &&
+    typeof value.role === "string" &&
+    messageRoles.includes(value.role as (typeof messageRoles)[number]) &&
+    typeof value.status === "string" &&
+    messageStatuses.includes(
+      value.status as (typeof messageStatuses)[number],
+    ) &&
+    Array.isArray(value.productCards) &&
+    value.productCards.every(isProductCardSnapshot)
+  );
+}
+
+function isPersistedConversation(
+  value: unknown,
+): value is PersistedConversation {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.title === "string" &&
+    typeof value.createdAt === "string" &&
+    typeof value.updatedAt === "string" &&
+    Array.isArray(value.messages) &&
+    value.messages.every(isPersistedMessage)
+  );
+}
+
+function isChatError(value: unknown): value is ChatError {
+  return (
+    isRecord(value) &&
+    typeof value.code === "string" &&
+    chatErrorCodes.includes(value.code as ChatError["code"]) &&
+    typeof value.message === "string"
+  );
+}
+
+function isChatResponse(value: unknown): value is ChatResponse {
+  if (!isRecord(value) || typeof value.status !== "string") {
+    return false;
+  }
+
+  if (value.status === "complete" || value.status === "pending") {
+    return (
+      typeof value.conversationId === "string" &&
+      isPersistedMessage(value.assistantMessage)
+    );
+  }
 
   return (
-    error ?? {
-      code: "PERSISTENCE_UNAVAILABLE",
-      message: "The conversation could not be updated. Please retry.",
-    }
+    value.status === "error" &&
+    (typeof value.conversationId === "string" ||
+      value.conversationId === null) &&
+    (isPersistedMessage(value.assistantMessage) ||
+      value.assistantMessage === null) &&
+    isChatError(value.error)
   );
+}
+
+function parseChatError(payload: unknown): ChatError {
+  if (isRecord(payload) && isChatError(payload.error)) {
+    return payload.error;
+  }
+
+  return createPersistenceError(
+    "The conversation could not be updated. Please retry.",
+  );
+}
+
+function waitForNextPoll(signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const timeoutId = window.setTimeout(finish, pollIntervalMs);
+
+    function finish(): void {
+      window.clearTimeout(timeoutId);
+      signal.removeEventListener("abort", finish);
+      resolve();
+    }
+
+    signal.addEventListener("abort", finish, { once: true });
+  });
 }
 
 export function ChatShell({ initialConversation }: ChatShellProperties) {
@@ -132,6 +258,9 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
     initialConversation,
     createInitialState,
   );
+  const activeRequestGeneration = useRef(0);
+  const activeRequestController = useRef<AbortController | null>(null);
+  const serverConversationId = useRef(initialConversation?.id ?? null);
   const hasPendingMessage = state.conversation?.messages.some(
     (message) => message.status === "pending",
   );
@@ -140,12 +269,164 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
     state.status === "unknownConversation" ||
     hasPendingMessage === true;
 
+  function invalidateActiveRequest(): void {
+    activeRequestGeneration.current += 1;
+    activeRequestController.current?.abort();
+    activeRequestController.current = null;
+  }
+
+  function isActiveRequest(generation: number, signal: AbortSignal): boolean {
+    return activeRequestGeneration.current === generation && !signal.aborted;
+  }
+
+  function finishConversation(
+    conversation: PersistedConversation,
+    generation: number,
+    signal: AbortSignal,
+  ): void {
+    if (!isActiveRequest(generation, signal)) {
+      return;
+    }
+
+    activeRequestController.current = null;
+    dispatch({ type: "complete", conversation });
+    router.push(`/conversations/${conversation.id}`);
+  }
+
+  function showRequestError(
+    error: ChatError,
+    generation: number,
+    signal: AbortSignal,
+  ): void {
+    if (!isActiveRequest(generation, signal)) {
+      return;
+    }
+
+    activeRequestController.current = null;
+    dispatch({ type: "error", error });
+  }
+
+  function showUnknownConversation(
+    generation: number,
+    signal: AbortSignal,
+  ): void {
+    if (!isActiveRequest(generation, signal)) {
+      return;
+    }
+
+    activeRequestController.current = null;
+    dispatch({ type: "unknownConversation" });
+  }
+
+  async function reconcilePendingResponse(
+    conversationId: string,
+    assistantMessageId: string,
+    request: PendingRequest,
+    generation: number,
+    signal: AbortSignal,
+  ): Promise<void> {
+    for (let attempt = 0; attempt < maximumPollAttempts; attempt += 1) {
+      if (attempt > 0) {
+        await waitForNextPoll(signal);
+      }
+
+      if (!isActiveRequest(generation, signal)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/conversations/${conversationId}`, {
+          signal,
+        });
+        const payload: unknown = await response.json();
+
+        if (!isActiveRequest(generation, signal)) {
+          return;
+        }
+
+        if (!response.ok) {
+          const error = parseChatError(payload);
+
+          if (error.code === "UNKNOWN_CONVERSATION") {
+            showUnknownConversation(generation, signal);
+            return;
+          }
+
+          showRequestError(error, generation, signal);
+          return;
+        }
+
+        if (!isPersistedConversation(payload)) {
+          if (attempt === maximumPollAttempts - 1) {
+            showRequestError(
+              createPersistenceError(
+                "The conversation response was invalid. Please retry.",
+              ),
+              generation,
+              signal,
+            );
+          }
+
+          continue;
+        }
+
+        const assistantMessage = payload.messages.find(
+          (message) => message.id === assistantMessageId,
+        );
+
+        if (assistantMessage?.status === "complete") {
+          finishConversation(payload, generation, signal);
+          return;
+        }
+
+        if (assistantMessage?.status === "failed") {
+          showRequestError(
+            createPersistenceError(
+              "The response could not be completed. Please retry.",
+            ),
+            generation,
+            signal,
+          );
+          return;
+        }
+
+        dispatch({ type: "pending", conversation: payload, request });
+      } catch {
+        if (!isActiveRequest(generation, signal)) {
+          return;
+        }
+
+        if (attempt === maximumPollAttempts - 1) {
+          showRequestError(
+            createPersistenceError(
+              "The response is taking too long. Please retry.",
+            ),
+            generation,
+            signal,
+          );
+        }
+      }
+    }
+
+    showRequestError(
+      createPersistenceError("The response is taking too long. Please retry."),
+      generation,
+      signal,
+    );
+  }
+
   async function submitMessage(request: PendingRequest): Promise<void> {
-    const conversationId = state.conversation?.id;
+    const baseConversation = state.conversation;
+    const conversationId = baseConversation?.id;
     const endpoint = conversationId
       ? `/api/conversations/${conversationId}/messages`
       : "/api/conversations";
 
+    invalidateActiveRequest();
+    const generation = activeRequestGeneration.current;
+    const controller = new AbortController();
+    const { signal } = controller;
+    activeRequestController.current = controller;
     dispatch({ type: "send", request });
 
     try {
@@ -156,51 +437,84 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
         }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
+        signal,
       });
       const payload: unknown = await response.json();
+
+      if (!isActiveRequest(generation, signal)) {
+        return;
+      }
 
       if (!response.ok) {
         const error = parseChatError(payload);
 
         if (error.code === "UNKNOWN_CONVERSATION") {
-          dispatch({ type: "unknownConversation" });
+          showUnknownConversation(generation, signal);
           return;
         }
 
-        dispatch({ type: "error", error });
+        showRequestError(error, generation, signal);
         return;
       }
 
-      const chatResponse = payload as ChatResponse;
+      if (!isChatResponse(payload)) {
+        showRequestError(
+          createPersistenceError(
+            "The conversation response was invalid. Please retry.",
+          ),
+          generation,
+          signal,
+        );
+        return;
+      }
 
-      if (chatResponse.status === "error") {
-        if (chatResponse.error.code === "UNKNOWN_CONVERSATION") {
-          dispatch({ type: "unknownConversation" });
+      if (payload.status === "error") {
+        if (payload.error.code === "UNKNOWN_CONVERSATION") {
+          showUnknownConversation(generation, signal);
           return;
         }
 
-        dispatch({ type: "error", error: chatResponse.error });
+        showRequestError(payload.error, generation, signal);
         return;
       }
 
       const updatedConversation = createConversation(
-        state.conversation,
-        chatResponse.conversationId,
+        baseConversation,
+        payload.conversationId,
         request.content,
         request.requestId,
-        chatResponse.assistantMessage,
+        payload.assistantMessage,
       );
 
-      dispatch({ type: "complete", conversation: updatedConversation });
-      router.push(`/conversations/${chatResponse.conversationId}`);
+      if (payload.status === "pending") {
+        dispatch({
+          type: "pending",
+          conversation: updatedConversation,
+          request,
+        });
+        await reconcilePendingResponse(
+          payload.conversationId,
+          payload.assistantMessage.id,
+          request,
+          generation,
+          signal,
+        );
+        return;
+      }
+
+      finishConversation(updatedConversation, generation, signal);
     } catch {
-      dispatch({
-        type: "error",
-        error: {
-          code: "PERSISTENCE_UNAVAILABLE",
-          message: "The conversation could not be updated. Please retry.",
-        },
-      });
+      if (!isActiveRequest(generation, signal)) {
+        return;
+      }
+
+      showRequestError(
+        createPersistenceError(
+          "The conversation could not be updated. Please retry.",
+        ),
+        generation,
+        signal,
+      );
     }
   }
 
@@ -212,6 +526,7 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
   }
 
   function handleNewConversation(): void {
+    invalidateActiveRequest();
     dispatch({ type: "newConversation" });
     router.push("/");
   }
@@ -222,10 +537,30 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
     }
   }
 
+  useEffect(() => {
+    const nextConversationId = initialConversation?.id ?? null;
+
+    if (serverConversationId.current === nextConversationId) {
+      return;
+    }
+
+    serverConversationId.current = nextConversationId;
+    invalidateActiveRequest();
+    dispatch({ type: "synchronize", conversation: initialConversation });
+  }, [initialConversation]);
+
+  useEffect(() => {
+    return () => {
+      activeRequestGeneration.current += 1;
+      activeRequestController.current?.abort();
+    };
+  }, []);
+
   return (
     <main className="chat-shell">
       <ConversationSidebar
         activeConversationId={state.conversation?.id ?? null}
+        onConversationNavigate={invalidateActiveRequest}
         onNewConversation={handleNewConversation}
       />
       <section className="chat-panel">
