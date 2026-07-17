@@ -5,6 +5,7 @@ import type { ProductCardSnapshot } from "../conversations/types";
 export type ReplyCompletion = {
   content: string;
   productCards: ProductCardSnapshot[];
+  retrievalAnchorMessage: string | null;
 };
 
 export class ReplyCompletionCache {

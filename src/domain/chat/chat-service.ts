@@ -22,6 +22,7 @@ import {
   type ChatResponse,
   type ModelClient,
   type PlanAttemptOutcome,
+  type RetrievalPlan,
   type StartConversationInput,
 } from "./types";
 import { deriveActiveContext } from "./active-context";
@@ -204,6 +205,7 @@ export class ChatService {
         assistantMessage,
         cachedCompletion.content,
         cachedCompletion.productCards,
+        cachedCompletion.retrievalAnchorMessage,
       );
     }
 
@@ -294,13 +296,17 @@ export class ChatService {
         assistantMessage,
         plan.assistantMessage,
         [],
+        null,
       );
     }
 
     let productCards: ProductCardSnapshot[];
 
     try {
-      const result = await this.catalogResolver.resolve(plan);
+      const result = await this.catalogResolver.resolve(
+        plan,
+        messageContext.priorProductIds,
+      );
       productCards = result.productCards;
     } catch (error) {
       if (
@@ -345,7 +351,24 @@ export class ChatService {
       assistantMessage,
       content,
       productCards,
+      this.computeRetrievalAnchorMessage(plan, userMessage, messageContext),
     );
+  }
+
+  private computeRetrievalAnchorMessage(
+    plan: RetrievalPlan,
+    userMessage: string,
+    messageContext: MessageContext,
+  ): string | null {
+    if (plan.intent !== "search" && plan.intent !== "browse_category") {
+      return null;
+    }
+
+    if (!plan.isContinuation) {
+      return userMessage;
+    }
+
+    return messageContext.activeContext?.lastResolvedUserMessage ?? userMessage;
   }
 
   private returnExistingAssistantReply(
@@ -381,6 +404,7 @@ export class ChatService {
     assistantMessage: PersistedMessage,
     content: string,
     productCards: ProductCardSnapshot[],
+    retrievalAnchorMessage: string | null,
   ): Promise<ChatResponse> {
     try {
       const completedAssistantMessage =
@@ -389,6 +413,7 @@ export class ChatService {
           conversationId,
           messageId: assistantMessage.id,
           productCards,
+          retrievalAnchorMessage,
         });
       this.replyCompletionCache.delete(conversationId, assistantMessage.id);
 
@@ -401,6 +426,7 @@ export class ChatService {
       this.replyCompletionCache.set(conversationId, assistantMessage.id, {
         content,
         productCards,
+        retrievalAnchorMessage,
       });
 
       return this.failAssistantMessage(

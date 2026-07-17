@@ -22,6 +22,7 @@ const retrievalPlanSchema = z
     minRating: z.number().finite().min(0).max(5).nullable(),
     inStock: z.boolean().nullable(),
     sort: z.enum(["relevance", "price_asc", "price_desc", "rating_desc"]),
+    isContinuation: z.boolean(),
     referencedProductIds: z.array(z.number().int().positive()).max(2),
     assistantMessage: z.string().trim().min(1).max(1_000).nullable(),
   })
@@ -157,7 +158,8 @@ export class PlanValidator {
       plan.maxPrice !== null ||
       plan.minRating !== null ||
       plan.inStock !== null ||
-      plan.sort !== "relevance"
+      plan.sort !== "relevance" ||
+      plan.isContinuation
     );
   }
 

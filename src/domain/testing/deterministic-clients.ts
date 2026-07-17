@@ -55,6 +55,78 @@ export const fixtureCatalog: CatalogProduct[] = [
   },
   {
     availabilityStatus: "In Stock",
+    category: "smartphones",
+    description: "Budget phone with a reliable battery.",
+    id: 104,
+    images: [createFixtureImage("Vela Phone Lite", "#2f9bff")],
+    price: 179,
+    rating: 4.1,
+    stock: 20,
+    thumbnail: createFixtureImage("Vela Phone Lite", "#2f9bff"),
+    title: "Vela Phone Lite",
+  },
+  {
+    availabilityStatus: "In Stock",
+    category: "smartphones",
+    description: "Mid-range phone with a versatile camera.",
+    id: 105,
+    images: [createFixtureImage("Nimbus Phone X", "#5e35b1")],
+    price: 349,
+    rating: 4.4,
+    stock: 15,
+    thumbnail: createFixtureImage("Nimbus Phone X", "#5e35b1"),
+    title: "Nimbus Phone X",
+  },
+  {
+    availabilityStatus: "In Stock",
+    category: "smartphones",
+    description: "Rugged phone built for outdoor use.",
+    id: 106,
+    images: [createFixtureImage("Terra Phone Rugged", "#6d4c41")],
+    price: 429,
+    rating: 4.3,
+    stock: 6,
+    thumbnail: createFixtureImage("Terra Phone Rugged", "#6d4c41"),
+    title: "Terra Phone Rugged",
+  },
+  {
+    availabilityStatus: "Low Stock",
+    category: "smartphones",
+    description: "Foldable phone with a compact form factor.",
+    id: 107,
+    images: [createFixtureImage("Fold Phone Duo", "#c2185b")],
+    price: 899,
+    rating: 4.7,
+    stock: 3,
+    thumbnail: createFixtureImage("Fold Phone Duo", "#c2185b"),
+    title: "Fold Phone Duo",
+  },
+  {
+    availabilityStatus: "In Stock",
+    category: "smartphones",
+    description: "Gaming phone with a high refresh-rate display.",
+    id: 108,
+    images: [createFixtureImage("Blitz Phone GT", "#00897b")],
+    price: 549,
+    rating: 4.6,
+    stock: 9,
+    thumbnail: createFixtureImage("Blitz Phone GT", "#00897b"),
+    title: "Blitz Phone GT",
+  },
+  {
+    availabilityStatus: "In Stock",
+    category: "smartphones",
+    description: "Compact phone with an emphasis on portability.",
+    id: 109,
+    images: [createFixtureImage("Petal Phone Nano", "#f06292")],
+    price: 249,
+    rating: 4.2,
+    stock: 11,
+    thumbnail: createFixtureImage("Petal Phone Nano", "#f06292"),
+    title: "Petal Phone Nano",
+  },
+  {
+    availabilityStatus: "In Stock",
     category: "laptops",
     description: "Lightweight laptop for daily work.",
     id: 201,
@@ -239,6 +311,7 @@ export class DeterministicModelClient implements ModelClient {
         categorySlug: null,
         inStock: null,
         intent: "product_detail",
+        isContinuation: false,
         maxPrice: null,
         minRating: null,
         referencedProductIds: [ordinalProductId],
@@ -247,6 +320,25 @@ export class DeterministicModelClient implements ModelClient {
       };
     }
 
+    if (
+      this.hasContinuationIntent(normalizedMessage) &&
+      input.activeContext?.lastResolvedUserMessage != null
+    ) {
+      const replayedPlan = this.buildSearchOrBrowsePlan(
+        this.normalizeText(input.activeContext.lastResolvedUserMessage),
+        input,
+      );
+
+      return { ...replayedPlan, isContinuation: true };
+    }
+
+    return this.buildSearchOrBrowsePlan(normalizedMessage, input);
+  }
+
+  private buildSearchOrBrowsePlan(
+    normalizedMessage: string,
+    input: ModelPlanInput,
+  ): RetrievalPlan {
     const categorySlug = this.findCategory(normalizedMessage);
 
     if (categorySlug !== null && !this.hasSearchIntent(normalizedMessage)) {
@@ -255,6 +347,7 @@ export class DeterministicModelClient implements ModelClient {
         categorySlug,
         inStock: null,
         intent: "browse_category",
+        isContinuation: false,
         maxPrice: this.findMaximumPrice(normalizedMessage),
         minRating: null,
         referencedProductIds: [],
@@ -277,6 +370,7 @@ export class DeterministicModelClient implements ModelClient {
       categorySlug: null,
       inStock: normalizedMessage.includes("in stock") ? true : null,
       intent: "search",
+      isContinuation: false,
       maxPrice: this.findMaximumPrice(normalizedMessage),
       minRating: null,
       referencedProductIds: [],
@@ -306,6 +400,7 @@ export class DeterministicModelClient implements ModelClient {
       categorySlug: null,
       inStock: null,
       intent: "compare",
+      isContinuation: false,
       maxPrice: null,
       minRating: null,
       referencedProductIds: priorProductIds.slice(0, 2),
@@ -323,6 +418,7 @@ export class DeterministicModelClient implements ModelClient {
       categorySlug: null,
       inStock: null,
       intent,
+      isContinuation: false,
       maxPrice: null,
       minRating: null,
       referencedProductIds: [],
@@ -382,12 +478,15 @@ export class DeterministicModelClient implements ModelClient {
   private extractAttributeTerms(value: string): string[] {
     const ignoredTerms = new Set([
       "a",
+      "again",
       "an",
       "and",
+      "another",
       "are",
       "below",
       "best",
       "cheapest",
+      "else",
       "expensive",
       "find",
       "for",
@@ -400,6 +499,7 @@ export class DeterministicModelClient implements ModelClient {
       "less",
       "lowest",
       "me",
+      "more",
       "most",
       "need",
       "of",
@@ -407,6 +507,7 @@ export class DeterministicModelClient implements ModelClient {
       "one",
       "only",
       "or",
+      "others",
       "please",
       "price",
       "rated",
@@ -420,6 +521,7 @@ export class DeterministicModelClient implements ModelClient {
       "under",
       "want",
       "with",
+      "עוד",
     ]);
 
     return value
@@ -447,6 +549,19 @@ export class DeterministicModelClient implements ModelClient {
     }
 
     return "relevance";
+  }
+
+  private hasContinuationIntent(value: string): boolean {
+    const continuationTokens = new Set([
+      "more",
+      "another",
+      "others",
+      "else",
+      "again",
+      "עוד",
+    ]);
+
+    return value.split(" ").some((token) => continuationTokens.has(token));
   }
 
   private hasMultipleRequests(value: string): boolean {

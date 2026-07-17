@@ -73,6 +73,7 @@ type CompleteAssistantMessageInput = {
   messageId: string;
   content: string;
   productCards: ProductCardSnapshot[];
+  retrievalAnchorMessage: string | null;
 };
 
 type FailAssistantMessageInput = {
@@ -232,6 +233,7 @@ export class ConversationRepository {
       const updatedMessage = await transaction.message.updateMany({
         data: {
           content: input.content,
+          retrievalAnchorMessage: input.retrievalAnchorMessage,
           status: "complete",
         },
         where: {
@@ -432,6 +434,7 @@ export class ConversationRepository {
       productCards: message.productCards.map((productCard) =>
         this.mapProductCard(productCard),
       ),
+      retrievalAnchorMessage: message.retrievalAnchorMessage,
       role: message.role,
       status: message.status,
     };

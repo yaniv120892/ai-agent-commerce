@@ -17,6 +17,7 @@ function createPlan(overrides: Partial<RetrievalPlan> = {}): RetrievalPlan {
     minRating: null,
     inStock: null,
     sort: "relevance",
+    isContinuation: false,
     referencedProductIds: [],
     assistantMessage: null,
     ...overrides,

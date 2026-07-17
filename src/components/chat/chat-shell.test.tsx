@@ -31,6 +31,7 @@ const conversation: PersistedConversation = {
           title: "Phone Ultra",
         },
       ],
+      retrievalAnchorMessage: null,
       role: "assistant",
       status: "complete",
     },
@@ -49,6 +50,7 @@ function createAssistantMessage(content: string) {
     createdAt: "2026-07-17T10:01:00.000Z",
     id: "00000000-0000-4000-8000-000000000003",
     productCards: [],
+    retrievalAnchorMessage: null,
     role: "assistant" as const,
     status: "complete" as const,
   };
