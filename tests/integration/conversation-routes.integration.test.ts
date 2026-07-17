@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PlanValidator } from "@/domain/catalog/plan-validator";
 import type { RetrievalPlan } from "@/domain/catalog/types";
 import { ChatService } from "@/domain/chat/chat-service";
+import { PlanRepairService } from "@/domain/chat/plan-repair-service";
 import type { ModelClient } from "@/domain/chat/types";
 import { ConversationRepository } from "@/domain/conversations/conversation-repository";
 import type { ProductCardSnapshot } from "@/domain/conversations/types";
@@ -51,7 +53,15 @@ describe("conversation routes", () => {
     createGroundedReply: vi.fn().mockResolvedValue("Phone Ultra is a match."),
     createRetrievalPlan: vi.fn().mockResolvedValue(retrievalPlan),
   };
-  const chatService = new ChatService(repository, catalogResolver, modelClient);
+  const chatService = new ChatService(
+    repository,
+    catalogResolver,
+    modelClient,
+    new PlanRepairService(
+      modelClient,
+      (categorySlugs) => new PlanValidator(categorySlugs),
+    ),
+  );
 
   beforeEach(async () => {
     await prisma.messageProductCard.deleteMany();

@@ -24,9 +24,13 @@ export function createEvaluationReport(
       failed: gateOutcome.verdicts.filter(
         (verdict) => verdict.outcome === "failed",
       ).length,
+      firstPassPlanValid: results.filter((result) => result.firstPassPlanValid)
+        .length,
       passRate: gateOutcome.passRate,
       passed: gateOutcome.passed,
       quarantined: gateOutcome.quarantined,
+      repairAttempted: results.filter((result) => result.repairAttempted)
+        .length,
       total: gateOutcome.verdicts.length,
     },
     verdicts: gateOutcome.verdicts,

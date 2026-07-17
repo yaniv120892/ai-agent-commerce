@@ -3,6 +3,7 @@ import "dotenv/config";
 import { deriveActiveContext } from "../src/domain/chat/active-context";
 import { CatalogClient } from "../src/domain/catalog/catalog-client";
 import { CatalogResolver } from "../src/domain/catalog/catalog-resolver";
+import { PlanValidator } from "../src/domain/catalog/plan-validator";
 import type { PersistedMessage } from "../src/domain/conversations/types";
 import { resolveOpenAIModelSelection } from "../src/lib/openai-model-config";
 
@@ -29,6 +30,7 @@ async function main(): Promise<void> {
   const catalogClient = new CatalogClient(fetch, "https://dummyjson.com", 5000);
   const catalogResolver = new CatalogResolver(catalogClient);
   const allowedCategorySlugs = await catalogResolver.listAllowedCategorySlugs();
+  const planValidator = new PlanValidator(allowedCategorySlugs);
 
   console.log(
     '\n--- Turn 1: "ma shoes" resolves to mens-shoes (per the ticket) ---',
@@ -53,7 +55,9 @@ async function main(): Promise<void> {
     searchTerms: [],
     sort: "relevance" as const,
   };
-  const firstResolved = await catalogResolver.resolve(firstPlan, []);
+  const firstResolved = await catalogResolver.resolve(
+    planValidator.validate(firstPlan, []),
+  );
 
   console.log(
     `Resolved ${firstResolved.productCards.length} real mens-shoes product card(s):`,
@@ -101,6 +105,7 @@ async function main(): Promise<void> {
     allowedCategorySlugs,
     history,
     priorProductIds,
+    repairContext: null,
     userMessage: "I want red shoesh",
   });
 
@@ -111,8 +116,7 @@ async function main(): Promise<void> {
 
   if (!regressed) {
     const secondResolved = await catalogResolver.resolve(
-      secondPlan,
-      priorProductIds,
+      planValidator.validate(secondPlan, priorProductIds),
     );
 
     console.log(
