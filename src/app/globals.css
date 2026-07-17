@@ -445,7 +445,7 @@ button:disabled {
   margin: var(--space-1) 0 0;
 }
 
-.product-card__content p {
+.product-card__description {
   color: var(--color-text-secondary);
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -464,6 +464,13 @@ button:disabled {
 .product-card__price {
   color: var(--color-text-primary);
   font-weight: 700;
+  margin: 0;
+}
+
+.product-card__rating {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  margin: 0;
 }
 
 .chat-status {
