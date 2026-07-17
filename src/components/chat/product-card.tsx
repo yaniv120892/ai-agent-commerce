@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 import type { ProductCardSnapshot } from "./types";
 
@@ -8,7 +9,12 @@ type ProductCardProperties = {
 
 export function ProductCard({ product }: ProductCardProperties) {
   return (
-    <article className="product-card">
+    <Link
+      className="product-card"
+      href={`/products/${product.productId}`}
+      rel="noopener noreferrer"
+      target="_blank"
+    >
       <Image
         alt={product.title}
         height={144}
@@ -29,6 +35,6 @@ export function ProductCard({ product }: ProductCardProperties) {
           ) : null}
         </div>
       </div>
-    </article>
+    </Link>
   );
 }
