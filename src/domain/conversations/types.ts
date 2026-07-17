@@ -28,6 +28,8 @@ export type PersistedConversation = {
   messages: PersistedMessage[];
 };
 
+export type ConversationSummary = Omit<PersistedConversation, "messages">;
+
 export type AppendedAssistantReply = {
   assistantMessage: PersistedMessage;
   state: "created" | "existing" | "retried";
