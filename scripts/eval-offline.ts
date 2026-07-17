@@ -1,5 +1,3 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 
 import { deriveActiveContext } from "../src/domain/chat/active-context";
@@ -13,6 +11,12 @@ import {
   FixtureCatalogClient,
   getFixtureProduct,
 } from "../src/domain/testing/deterministic-clients";
+import { loadEvaluationConfig } from "../src/domain/testing/evaluation-config";
+import { EvaluationGate } from "../src/domain/testing/evaluation-gate";
+import {
+  createEvaluationReport,
+  writeEvaluationReport,
+} from "../src/domain/testing/evaluation-report";
 import {
   checkConstraints,
   checkForbiddenBehavior,
@@ -22,11 +26,8 @@ import {
 } from "../src/domain/testing/scenario-evaluation";
 import type {
   EvaluationCaseResult,
-  EvaluationReport,
   Scenario,
 } from "../src/domain/testing/scenario-evaluation";
-
-const artifactsDirectory = resolve(process.cwd(), "artifacts/evaluations");
 
 function selectFixtureCatalog(scenario: Scenario): CatalogProduct[] {
   return scenario.fixtureCatalog.productIds.map(getFixtureProduct);
@@ -115,36 +116,28 @@ async function evaluateScenario(
   };
 }
 
-async function writeReport(report: EvaluationReport): Promise<string> {
-  await mkdir(artifactsDirectory, { recursive: true });
-  const reportPath = resolve(
-    artifactsDirectory,
-    `offline-${report.generatedAt.replaceAll(/[:.]/gu, "-")}.json`,
-  );
-
-  await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
-
-  return reportPath;
-}
-
 async function main(): Promise<void> {
+  const config = await loadEvaluationConfig();
   const scenarios = await loadScenarios();
   const results = await Promise.all(scenarios.map(evaluateScenario));
-  const report: EvaluationReport = {
-    generatedAt: new Date().toISOString(),
+  const gate = new EvaluationGate(config.offline, "offline");
+  const gateOutcome = gate.evaluate({
+    abortReason: null,
     results,
-    summary: {
-      failed: results.filter((result) => result.failures.length > 0).length,
-      passed: results.filter((result) => result.failures.length === 0).length,
-      total: results.length,
-    },
-  };
-  const reportPath = await writeReport(report);
+    scenarioNames: scenarios.map((scenario) => scenario.name),
+  });
+  const report = createEvaluationReport(results, gateOutcome);
+  const reportPath = await writeEvaluationReport("offline", report);
 
   console.log(`Offline evaluation report: ${reportPath}`);
   console.log(JSON.stringify(report.summary));
 
-  if (report.summary.failed > 0) {
+  if (gateOutcome.blockingReasons.length > 0) {
+    console.error(
+      `\nOffline evaluation gate failed:\n${gateOutcome.blockingReasons
+        .map((reason) => `  - ${reason}`)
+        .join("\n")}`,
+    );
     process.exitCode = 1;
   }
 }
