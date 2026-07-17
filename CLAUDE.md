@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Maintenance
+
+When a change alters commands, the composition root, domain boundaries, the retrieval/plan contract, caching behavior, the persistence/retry state machine, or testing layers, update the relevant section of this file in the same change — do not let it drift from the code.
+
 ## What this is
 
 AI Commerce Copilot: a local, single-user shopping chat built on Next.js App Router. It turns a chat request into a constrained, schema-validated retrieval plan, retrieves products from DummyJSON, ranks them server-side, and persists both the conversation and immutable product-card snapshots in PostgreSQL. The model interprets language and writes the grounded reply; application code owns catalog access, filtering, ranking, persistence, and card construction — the model never picks hosts, HTTP methods, paths, or arbitrary URLs. See `README.md` for the full architecture rationale, retrieval policy, and failure-recovery table; it is authoritative and detailed — read it before making changes to the planner, catalog, or persistence flow.
