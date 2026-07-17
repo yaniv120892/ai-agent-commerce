@@ -39,7 +39,7 @@ function chatReducer(state: ChatUiState, action: ChatUiAction): ChatUiState {
   switch (action.type) {
     case "send": {
       return {
-        conversation: state.conversation,
+        conversation: action.conversation,
         pendingRequest: action.request,
         status: "sending",
       };
@@ -115,6 +115,38 @@ function createLocalUserMessage(
     productCards: [],
     role: "user",
     status: "complete",
+  };
+}
+
+function createPendingAssistantMessage(requestId: string): PersistedMessage {
+  return {
+    content: "",
+    createdAt: new Date().toISOString(),
+    id: `${requestId}-pending`,
+    productCards: [],
+    role: "assistant",
+    status: "pending",
+  };
+}
+
+function createOptimisticConversation(
+  existingConversation: PersistedConversation | null,
+  content: string,
+  requestId: string,
+): PersistedConversation {
+  const now = new Date().toISOString();
+  const existingMessages = existingConversation?.messages ?? [];
+
+  return {
+    createdAt: existingConversation?.createdAt ?? now,
+    id: existingConversation?.id ?? requestId,
+    messages: [
+      ...existingMessages,
+      createLocalUserMessage(content, requestId),
+      createPendingAssistantMessage(requestId),
+    ],
+    title: existingConversation?.title ?? content.slice(0, 60),
+    updatedAt: now,
   };
 }
 
@@ -458,7 +490,15 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
     const controller = new AbortController();
     const { signal } = controller;
     activeRequestController.current = controller;
-    dispatch({ type: "send", request });
+    dispatch({
+      type: "send",
+      conversation: createOptimisticConversation(
+        baseConversation,
+        request.content,
+        request.requestId,
+      ),
+      request,
+    });
 
     try {
       const response = await fetch(endpoint, {
@@ -497,7 +537,7 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
                 recoveryConversationId,
                 request.content,
               )
-            : undefined,
+            : (baseConversation ?? undefined),
         );
         return;
       }
@@ -509,6 +549,7 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
           ),
           generation,
           signal,
+          baseConversation ?? undefined,
         );
         return;
       }
@@ -519,7 +560,12 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
           return;
         }
 
-        showRequestError(payload.error, generation, signal);
+        showRequestError(
+          payload.error,
+          generation,
+          signal,
+          baseConversation ?? undefined,
+        );
         return;
       }
 
@@ -559,6 +605,7 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
         ),
         generation,
         signal,
+        baseConversation ?? undefined,
       );
     }
   }

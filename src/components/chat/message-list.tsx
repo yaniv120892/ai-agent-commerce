@@ -1,3 +1,5 @@
+import ReactMarkdown from "react-markdown";
+
 import { ProductCard } from "./product-card";
 import type { PersistedMessage } from "./types";
 
@@ -36,9 +38,6 @@ export function MessageList({ messages }: MessageListProperties) {
             {messageAvatarLabel(message.role)}
           </span>
           <article className={`message-bubble message-bubble--${message.role}`}>
-            <p className="message-bubble__role">
-              {message.role === "assistant" ? "Shopping assistant" : "You"}
-            </p>
             {message.status === "pending" ? (
               <p className="typing-indicator">
                 Finding products for you
@@ -49,7 +48,9 @@ export function MessageList({ messages }: MessageListProperties) {
                 </span>
               </p>
             ) : (
-              <p>{message.content}</p>
+              <div className="message-bubble__content">
+                <ReactMarkdown>{message.content}</ReactMarkdown>
+              </div>
             )}
             {message.productCards.length > 0 ? (
               <div className="product-card-list">

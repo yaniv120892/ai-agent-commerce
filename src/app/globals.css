@@ -230,7 +230,6 @@ button:disabled {
 }
 
 .chat-panel__eyebrow,
-.message-bubble__role,
 .product-card__category {
   color: var(--color-text-secondary);
   font-size: 0.8rem;
@@ -313,6 +312,29 @@ button:disabled {
 
 .message-bubble p {
   margin: var(--space-1) 0 0;
+}
+
+.message-bubble__content > :first-child {
+  margin-top: var(--space-1);
+}
+
+.message-bubble__content p {
+  margin: var(--space-2) 0 0;
+}
+
+.message-bubble__content ul,
+.message-bubble__content ol {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+}
+
+.message-bubble__content li + li {
+  margin-top: var(--space-1);
+}
+
+.message-bubble__content a {
+  color: inherit;
+  text-decoration: underline;
 }
 
 .chat-empty-state {
@@ -503,6 +525,21 @@ button:disabled {
   border-color: var(--color-accent-500);
   box-shadow: 0 0 0 3px var(--color-accent-100);
   outline: none;
+}
+
+.chat-composer__footer {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.chat-composer__counter {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.chat-composer__counter--over {
+  color: var(--color-danger-500);
 }
 
 .chat-composer button {
