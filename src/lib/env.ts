@@ -7,6 +7,9 @@ import type { Environment } from "./types";
 const environmentSchema = z.object({
   DATABASE_URL: z.url(),
   OPENAI_API_KEY: z.string().min(1),
+  OPENAI_TIMEOUT_MS: z.coerce.number().int().positive().default(20000),
+  OPENAI_MAX_RETRIES: z.coerce.number().int().nonnegative().default(1),
+  OPENAI_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().default(2000),
   DUMMYJSON_BASE_URL: z
     .literal("https://dummyjson.com")
     .default("https://dummyjson.com"),
@@ -38,6 +41,9 @@ export function createEnvironment(values: NodeJS.ProcessEnv): Environment {
   return {
     databaseUrl: parsedEnvironment.DATABASE_URL,
     openAiApiKey: parsedEnvironment.OPENAI_API_KEY,
+    openAiTimeoutMs: parsedEnvironment.OPENAI_TIMEOUT_MS,
+    openAiMaxRetries: parsedEnvironment.OPENAI_MAX_RETRIES,
+    openAiMaxOutputTokens: parsedEnvironment.OPENAI_MAX_OUTPUT_TOKENS,
     dummyJsonBaseUrl: parsedEnvironment.DUMMYJSON_BASE_URL,
     dummyJsonTimeoutMs: parsedEnvironment.DUMMYJSON_TIMEOUT_MS,
     e2eMode: parsedEnvironment.E2E_MODE === "true",
