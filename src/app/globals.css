@@ -245,6 +245,7 @@ button:disabled {
 }
 
 .message-list {
+  align-content: start;
   display: grid;
   gap: var(--space-5);
   list-style: none;
@@ -253,6 +254,7 @@ button:disabled {
 }
 
 .message-list__item {
+  align-items: flex-start;
   display: flex;
   gap: var(--space-3);
 }
