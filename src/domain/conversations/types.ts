@@ -30,6 +30,11 @@ export type PersistedConversation = {
 
 export type ConversationSummary = Omit<PersistedConversation, "messages">;
 
+export type ConversationSummaryQuery = {
+  limit: number;
+  offset: number;
+};
+
 export type AppendedAssistantReply = {
   assistantMessage: PersistedMessage;
   state: "created" | "existing" | "retried";

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { getConversationApiDependencies } from "@/app/api/conversation-dependencies";
-import { parseMessageRequest } from "@/app/api/conversation-request";
+import {
+  parseConversationSummaryQuery,
+  parseMessageRequest,
+} from "@/app/api/conversation-request";
 import {
   jsonChatResponse,
   jsonError,
@@ -13,15 +16,23 @@ function createRequestId(): string {
   return crypto.randomUUID();
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const requestId = createRequestId();
+  const query = parseConversationSummaryQuery(request);
+
+  if (query === null) {
+    return jsonError(
+      "INVALID_PAGINATION",
+      "The conversation list parameters are invalid.",
+      422,
+      requestId,
+    );
+  }
 
   try {
     const { conversationRepository } = getConversationApiDependencies();
-    const conversations = await conversationRepository.listConversations();
-    const summaries = conversations.map<ConversationSummary>(
-      ({ messages, ...summary }) => summary,
-    );
+    const summaries: ConversationSummary[] =
+      await conversationRepository.listConversationSummaries(query);
 
     return NextResponse.json(summaries);
   } catch {

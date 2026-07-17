@@ -12,6 +12,49 @@ describe("ConversationRepository", () => {
     await prisma.conversation.deleteMany();
   });
 
+  it("lists paginated conversation summaries without messages", async () => {
+    const olderConversation = await prisma.conversation.create({
+      data: {
+        title: "Older conversation",
+      },
+    });
+    const newerConversation = await prisma.conversation.create({
+      data: {
+        title: "Newer conversation",
+      },
+    });
+
+    await prisma.conversation.update({
+      data: {
+        updatedAt: new Date("2026-07-17T10:00:00.000Z"),
+      },
+      where: {
+        id: olderConversation.id,
+      },
+    });
+    await prisma.conversation.update({
+      data: {
+        updatedAt: new Date("2026-07-17T11:00:00.000Z"),
+      },
+      where: {
+        id: newerConversation.id,
+      },
+    });
+
+    const summaries = await repository.listConversationSummaries({
+      limit: 1,
+      offset: 0,
+    });
+
+    expect(summaries).toEqual([
+      expect.objectContaining({
+        id: newerConversation.id,
+        title: "Newer conversation",
+      }),
+    ]);
+    expect(summaries[0]).not.toHaveProperty("messages");
+  });
+
   it("resumes messages and snapshot cards in stored order", async () => {
     const conversation = await repository.createConversationWithPendingReply({
       clientRequestId: "00000000-0000-4000-8000-000000000001",

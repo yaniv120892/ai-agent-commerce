@@ -13,6 +13,8 @@ vi.mock("@/app/api/conversation-dependencies", () => ({
 
 import { getConversationApiDependencies } from "@/app/api/conversation-dependencies";
 import { GET as getConversation } from "@/app/api/conversations/[conversationId]/route";
+import { POST as appendMessage } from "@/app/api/conversations/[conversationId]/messages/route";
+import { GET as listConversations } from "@/app/api/conversations/route";
 import { POST as createConversation } from "@/app/api/conversations/route";
 
 const productCards: ProductCardSnapshot[] = [
@@ -105,6 +107,95 @@ describe("conversation routes", () => {
     });
   });
 
+  it("lists conversation summaries without messages", async () => {
+    await createConversation(
+      new Request("http://localhost/api/conversations", {
+        body: JSON.stringify({
+          clientRequestId: "00000000-0000-4000-8000-000000000104",
+          content: "Show me a phone.",
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      }),
+    );
+
+    const response = await listConversations(
+      new Request("http://localhost/api/conversations?limit=1&offset=0"),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual([
+      expect.objectContaining({
+        title: "Show me a phone.",
+      }),
+    ]);
+  });
+
+  it("appends a message and returns a completed reply", async () => {
+    const createResponse = await createConversation(
+      new Request("http://localhost/api/conversations", {
+        body: JSON.stringify({
+          clientRequestId: "00000000-0000-4000-8000-000000000105",
+          content: "Show me a phone.",
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      }),
+    );
+    const createPayload = await createResponse.json();
+    const response = await appendMessage(
+      new Request("http://localhost/api/conversations/messages", {
+        body: JSON.stringify({
+          clientRequestId: "00000000-0000-4000-8000-000000000106",
+          content: "Only under $500.",
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      }),
+      {
+        params: Promise.resolve({
+          conversationId: createPayload.conversationId,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      assistantMessage: {
+        content: "Phone Ultra is a match.",
+        status: "complete",
+      },
+      conversationId: createPayload.conversationId,
+      status: "complete",
+    });
+  });
+
+  it("returns 404 when appending to an unknown conversation", async () => {
+    const response = await appendMessage(
+      new Request("http://localhost/api/conversations/messages", {
+        body: JSON.stringify({
+          clientRequestId: "00000000-0000-4000-8000-000000000107",
+          content: "Show me a phone.",
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      }),
+      {
+        params: Promise.resolve({
+          conversationId: "00000000-0000-4000-8000-000000000108",
+        }),
+      },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "UNKNOWN_CONVERSATION",
+        message: "This conversation is no longer available.",
+      },
+    });
+  });
+
   it("returns 422 without calling the model for invalid message content", async () => {
     const response = await createConversation(
       new Request("http://localhost/api/conversations", {
@@ -124,6 +215,7 @@ describe("conversation routes", () => {
         message: "Message content must be between 1 and 2,000 characters.",
       },
     });
+    expect(getConversationApiDependencies).not.toHaveBeenCalled();
     expect(modelClient.createRetrievalPlan).not.toHaveBeenCalled();
   });
 });

@@ -5,6 +5,8 @@ import type {
   PersistedConversation,
   PersistedMessage,
   ProductCardSnapshot,
+  ConversationSummary,
+  ConversationSummaryQuery,
 } from "./types";
 
 const productCardInclude = {
@@ -24,6 +26,13 @@ const conversationInclude = {
   },
 } as const satisfies Prisma.ConversationInclude;
 
+const conversationSummarySelect = {
+  createdAt: true,
+  id: true,
+  title: true,
+  updatedAt: true,
+} as const satisfies Prisma.ConversationSelect;
+
 const userMessageWithReplyInclude = {
   assistantReply: {
     include: productCardInclude,
@@ -32,6 +41,10 @@ const userMessageWithReplyInclude = {
 
 type ConversationWithMessages = Prisma.ConversationGetPayload<{
   include: typeof conversationInclude;
+}>;
+
+type ConversationSummaryRow = Prisma.ConversationGetPayload<{
+  select: typeof conversationSummarySelect;
 }>;
 
 type MessageWithProductCards = Prisma.MessageGetPayload<{
@@ -70,16 +83,20 @@ type FailAssistantMessageInput = {
 export class ConversationRepository {
   public constructor(private readonly prisma: PrismaClient) {}
 
-  public async listConversations(): Promise<PersistedConversation[]> {
+  public async listConversationSummaries(
+    query: ConversationSummaryQuery,
+  ): Promise<ConversationSummary[]> {
     const conversations = await this.prisma.conversation.findMany({
-      include: conversationInclude,
       orderBy: {
         updatedAt: "desc",
       },
+      select: conversationSummarySelect,
+      skip: query.offset,
+      take: query.limit,
     });
 
     return conversations.map((conversation) =>
-      this.mapConversation(conversation),
+      this.mapConversationSummary(conversation),
     );
   }
 
@@ -391,6 +408,17 @@ export class ConversationRepository {
       messages: conversation.messages.map((message) =>
         this.mapMessage(message),
       ),
+      title: conversation.title,
+      updatedAt: conversation.updatedAt.toISOString(),
+    };
+  }
+
+  private mapConversationSummary(
+    conversation: ConversationSummaryRow,
+  ): ConversationSummary {
+    return {
+      createdAt: conversation.createdAt.toISOString(),
+      id: conversation.id,
       title: conversation.title,
       updatedAt: conversation.updatedAt.toISOString(),
     };
