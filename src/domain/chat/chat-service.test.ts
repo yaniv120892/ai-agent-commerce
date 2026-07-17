@@ -97,6 +97,7 @@ function createDependencies() {
     resolve: vi.fn().mockResolvedValue({ productCards }),
   };
   const modelClient: ModelClient = {
+    createConversationTitle: vi.fn().mockResolvedValue("Phone shopping help"),
     createGroundedReply: vi.fn().mockResolvedValue("Phone Ultra is a match."),
     createRetrievalPlan: vi.fn().mockResolvedValue(createPlan()),
   };
@@ -129,12 +130,15 @@ describe("ChatService", () => {
       conversationId: "conversation-id",
       status: "complete",
     });
+    expect(modelClient.createConversationTitle).toHaveBeenCalledWith({
+      userMessage: "Find me a phone",
+    });
     expect(
       conversationRepository.createConversationWithPendingReply,
     ).toHaveBeenCalledWith({
       clientRequestId: "request-id",
       content: "Find me a phone",
-      title: "Find me a phone",
+      title: "Phone shopping help",
     });
     expect(modelClient.createRetrievalPlan).toHaveBeenCalledAfter(
       conversationRepository.createConversationWithPendingReply,
@@ -159,6 +163,33 @@ describe("ChatService", () => {
       productCards,
     });
     expect(catalogResolver.resolve).toHaveBeenCalledWith(createPlan(), []);
+  });
+
+  it("falls back to a truncated title when title generation fails", async () => {
+    const { catalogResolver, conversationRepository, modelClient } =
+      createDependencies();
+    vi.mocked(modelClient.createConversationTitle).mockRejectedValue(
+      new Error("model unavailable"),
+    );
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      ["smartphones"],
+    );
+
+    await service.startConversation({
+      clientRequestId: "request-id",
+      content: "  Find me a phone  ",
+    });
+
+    expect(
+      conversationRepository.createConversationWithPendingReply,
+    ).toHaveBeenCalledWith({
+      clientRequestId: "request-id",
+      content: "Find me a phone",
+      title: "Find me a phone",
+    });
   });
 
   it("returns safe unsupported text without catalog or grounded-reply access", async () => {
@@ -569,6 +600,33 @@ describe("OpenAIModelClient", () => {
     );
     expect(create.mock.calls[0][0].input[1].content).toContain(
       JSON.stringify(productCards),
+    );
+  });
+
+  it("requests a short title and truncates an overlong response", async () => {
+    const create = vi.fn().mockResolvedValue({
+      output_text: `  ${"Cheapest smartphones under budget ".repeat(3)}  `,
+    });
+    const client = new OpenAIModelClient("test-key", {
+      responses: {
+        create,
+        parse: vi.fn(),
+      },
+    });
+
+    const title = await client.createConversationTitle({
+      userMessage: "What is the cheapest phone you have?",
+    });
+
+    expect(title).toHaveLength(60);
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ model: "gpt-5.4-mini" }),
+    );
+    expect(create.mock.calls[0][0].input[0].content).toContain(
+      "short conversation title",
+    );
+    expect(create.mock.calls[0][0].input[1].content).toBe(
+      "What is the cheapest phone you have?",
     );
   });
 });

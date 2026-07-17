@@ -198,6 +198,45 @@ describe("ChatShell", () => {
     expect(await screen.findByText("Here is another phone.")).toBeVisible();
   });
 
+  it("shows the submitted message and a loading indicator before the response arrives", async () => {
+    let resolveResponse: ((response: Response) => void) | undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, options?: RequestInit) => {
+        if (options?.method === "POST") {
+          return pendingResponse;
+        }
+
+        return Promise.resolve(jsonResponse([]));
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<ChatShell initialConversation={conversation} />);
+    await user.type(screen.getByLabelText("Message"), "Show another phone");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(await screen.findByText("Show another phone")).toBeVisible();
+    expect(screen.getByText("Finding products for you")).toBeVisible();
+
+    resolveResponse?.(
+      jsonResponse({
+        assistantMessage: createAssistantMessage("Here is another phone."),
+        conversationId: conversation.id,
+        status: "complete",
+      }),
+    );
+
+    expect(await screen.findByText("Here is another phone.")).toBeVisible();
+    expect(
+      screen.queryByText("Finding products for you"),
+    ).not.toBeInTheDocument();
+  });
+
   it("synchronizes the shell when the server-provided conversation changes", () => {
     const { rerender } = render(
       <ChatShell initialConversation={conversation} />,
