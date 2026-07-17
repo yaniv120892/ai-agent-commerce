@@ -1,11 +1,12 @@
 import { z } from "zod";
 
+import { MESSAGE_CONTENT_MAX_LENGTH } from "@/domain/conversations/constants";
 import type { ConversationSummaryQuery } from "@/domain/conversations/types";
 
 const messageRequestSchema = z
   .object({
     clientRequestId: z.uuid(),
-    content: z.string().trim().min(1).max(2_000),
+    content: z.string().trim().min(1).max(MESSAGE_CONTENT_MAX_LENGTH),
   })
   .strict();
 
