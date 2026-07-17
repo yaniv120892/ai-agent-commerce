@@ -28,6 +28,11 @@ export type ModelTitleInput = {
   userMessage: string;
 };
 
+export type OpenAIModelSelection = {
+  plannerModel: string;
+  replyModel: string;
+};
+
 export interface ModelClient {
   createRetrievalPlan(input: ModelPlanInput): Promise<RetrievalPlan>;
   createGroundedReply(input: ModelReplyInput): Promise<string>;
