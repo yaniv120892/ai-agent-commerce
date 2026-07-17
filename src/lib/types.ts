@@ -5,6 +5,9 @@ export type Environment = {
   e2eMode: boolean;
   openAiApiKey: string;
   openAiModels: OpenAIModelSelection;
+  openAiTimeoutMs: number;
+  openAiMaxRetries: number;
+  openAiMaxOutputTokens: number;
   dummyJsonBaseUrl: string;
   dummyJsonTimeoutMs: number;
   redisUrl: string;

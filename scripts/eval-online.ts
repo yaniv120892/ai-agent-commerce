@@ -160,7 +160,13 @@ async function main(): Promise<void> {
   console.log(
     `Evaluating with planner model ${models.plannerModel} and reply model ${models.replyModel}`,
   );
-  const modelClient = new OpenAIModelClient(apiKey, models);
+  const modelClient = new OpenAIModelClient({
+    apiKey,
+    maxOutputTokens: 2000,
+    maxRetries: 1,
+    models,
+    timeoutMs: 20000,
+  });
   const results: EvaluationCaseResult[] = [];
 
   for (const scenario of scenarios) {

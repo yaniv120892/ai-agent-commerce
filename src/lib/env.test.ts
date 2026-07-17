@@ -41,7 +41,7 @@ it("rejects an invalid REDIS_URL", () => {
   ).toThrow("REDIS_URL");
 });
 
-it("applies default REDIS_URL and catalog cache TTLs when unset", () => {
+it("applies default REDIS_URL, catalog cache TTLs, and OpenAI bounds when unset", () => {
   const parsedEnvironment = createEnvironment({
     DATABASE_URL: "postgresql://localhost/ai_commerce",
     OPENAI_API_KEY: "test-key",
@@ -49,11 +49,37 @@ it("applies default REDIS_URL and catalog cache TTLs when unset", () => {
     redisUrl: string;
     catalogCacheListTtlSeconds: number;
     catalogCacheDetailTtlSeconds: number;
+    openAiTimeoutMs: number;
+    openAiMaxRetries: number;
+    openAiMaxOutputTokens: number;
   };
 
   expect(parsedEnvironment.redisUrl).toBe("redis://localhost:6379");
   expect(parsedEnvironment.catalogCacheListTtlSeconds).toBe(300);
   expect(parsedEnvironment.catalogCacheDetailTtlSeconds).toBe(1800);
+  expect(parsedEnvironment.openAiTimeoutMs).toBe(20000);
+  expect(parsedEnvironment.openAiMaxRetries).toBe(1);
+  expect(parsedEnvironment.openAiMaxOutputTokens).toBe(2000);
+});
+
+it("allows OPENAI_MAX_RETRIES to be set to zero", () => {
+  const parsedEnvironment = createEnvironment({
+    DATABASE_URL: "postgresql://localhost/ai_commerce",
+    OPENAI_API_KEY: "test-key",
+    OPENAI_MAX_RETRIES: "0",
+  }) as { openAiMaxRetries: number };
+
+  expect(parsedEnvironment.openAiMaxRetries).toBe(0);
+});
+
+it("rejects a non-numeric OPENAI_TIMEOUT_MS", () => {
+  expect(() =>
+    createEnvironment({
+      DATABASE_URL: "postgresql://localhost/ai_commerce",
+      OPENAI_API_KEY: "test-key",
+      OPENAI_TIMEOUT_MS: "not-a-number",
+    }),
+  ).toThrow("OPENAI_TIMEOUT_MS");
 });
 
 it("exposes the configured OpenAI models", () => {

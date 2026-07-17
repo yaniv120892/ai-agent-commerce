@@ -40,15 +40,34 @@ const MAX_CONVERSATION_TITLE_LENGTH = 60;
 
 type OpenAIResponsesClient = Pick<OpenAI, "responses">;
 
+export type OpenAIModelClientConfig = {
+  apiKey: string;
+  models: OpenAIModelSelection;
+  timeoutMs: number;
+  maxRetries: number;
+  maxOutputTokens: number;
+};
+
+export function createOpenAIClient(config: OpenAIModelClientConfig): OpenAI {
+  return new OpenAI({
+    apiKey: config.apiKey,
+    maxRetries: config.maxRetries,
+    timeout: config.timeoutMs,
+  });
+}
+
 export class OpenAIModelClient implements ModelClient {
   private readonly client: OpenAIResponsesClient;
+  private readonly models: OpenAIModelSelection;
+  private readonly maxOutputTokens: number;
 
   public constructor(
-    apiKey: string,
-    private readonly models: OpenAIModelSelection,
-    client: OpenAIResponsesClient = new OpenAI({ apiKey }),
+    config: OpenAIModelClientConfig,
+    client: OpenAIResponsesClient = createOpenAIClient(config),
   ) {
     this.client = client;
+    this.models = config.models;
+    this.maxOutputTokens = config.maxOutputTokens;
   }
 
   public async createRetrievalPlan(
@@ -66,11 +85,14 @@ export class OpenAIModelClient implements ModelClient {
           role: "user",
         },
       ],
+      max_output_tokens: this.maxOutputTokens,
       model: this.models.plannerModel,
       text: {
         format: zodTextFormat(retrievalPlanSchema, "retrieval_plan"),
       },
     });
+
+    this.assertResponseComplete(response, "retrieval plan");
 
     if (response.output_parsed === null) {
       throw new Error("OpenAI did not return a retrieval plan");
@@ -97,8 +119,12 @@ export class OpenAIModelClient implements ModelClient {
           role: "user",
         },
       ],
+      max_output_tokens: this.maxOutputTokens,
       model: this.models.replyModel,
     });
+
+    this.assertResponseComplete(response, "grounded reply");
+
     const content = response.output_text.trim();
 
     if (content.length === 0) {
@@ -123,8 +149,12 @@ export class OpenAIModelClient implements ModelClient {
           role: "user",
         },
       ],
+      max_output_tokens: this.maxOutputTokens,
       model: this.models.replyModel,
     });
+
+    this.assertResponseComplete(response, "conversation title");
+
     const title = response.output_text.trim();
 
     if (title.length === 0) {
@@ -132,6 +162,17 @@ export class OpenAIModelClient implements ModelClient {
     }
 
     return title.slice(0, MAX_CONVERSATION_TITLE_LENGTH);
+  }
+
+  private assertResponseComplete(
+    response: { incomplete_details: { reason?: string } | null },
+    callName: string,
+  ): void {
+    if (response.incomplete_details?.reason === "max_output_tokens") {
+      throw new Error(
+        `OpenAI ${callName} was truncated at max_output_tokens (${this.maxOutputTokens}); raise OPENAI_MAX_OUTPUT_TOKENS`,
+      );
+    }
   }
 
   private normalizeProducts(
