@@ -1,6 +1,6 @@
 import "server-only";
 
-import OpenAI from "openai";
+import OpenAI, { type ClientOptions } from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 
@@ -33,6 +33,7 @@ type OpenAIResponsesClient = Pick<OpenAI, "responses">;
 
 export type OpenAIModelClientConfig = {
   apiKey: string;
+  fetch?: ClientOptions["fetch"];
   models: OpenAIModelSelection;
   timeoutMs: number;
   maxRetries: number;
@@ -42,6 +43,7 @@ export type OpenAIModelClientConfig = {
 export function createOpenAIClient(config: OpenAIModelClientConfig): OpenAI {
   return new OpenAI({
     apiKey: config.apiKey,
+    fetch: config.fetch,
     maxRetries: config.maxRetries,
     timeout: config.timeoutMs,
   });
