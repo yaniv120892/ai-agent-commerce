@@ -301,7 +301,9 @@ describe("ChatShell", () => {
     await user.type(screen.getByLabelText("Message"), "Show another phone");
     await user.click(screen.getByRole("button", { name: "Send" }));
 
-    expect(await screen.findByText("Finding a response…")).toBeVisible();
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Finding a response…",
+    );
     expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
 
     resolveConversation?.(
