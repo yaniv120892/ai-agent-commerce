@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: ai_commerce
       POSTGRES_PASSWORD: ai_commerce_local
     ports:
-      - "5494:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/001-create-test-database.sql:/docker-entrypoint-initdb.d/001-create-test-database.sql:ro
