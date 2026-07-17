@@ -10,6 +10,7 @@ import { ConversationSidebar } from "./conversation-sidebar";
 import { MessageList } from "./message-list";
 import type {
   ChatError,
+  ChatErrorCode,
   ChatResponse,
   ChatUiAction,
   ChatUiState,
@@ -23,14 +24,18 @@ type ChatShellProperties = {
   initialConversation: PersistedConversation | null;
 };
 
-const chatErrorCodes: ChatError["code"][] = [
-  "CATALOG_UNAVAILABLE",
-  "INVALID_MESSAGE",
-  "INVALID_RETRIEVAL_PLAN",
-  "MODEL_UNAVAILABLE",
-  "PERSISTENCE_UNAVAILABLE",
-  "UNKNOWN_CONVERSATION",
-];
+const knownChatErrorCodes = {
+  CATALOG_UNAVAILABLE: true,
+  INVALID_MESSAGE: true,
+  INVALID_RETRIEVAL_PLAN: true,
+  MODEL_AUTH_FAILED: true,
+  MODEL_RATE_LIMITED: true,
+  MODEL_REFUSED: true,
+  MODEL_TIMEOUT: true,
+  MODEL_UNAVAILABLE: true,
+  PERSISTENCE_UNAVAILABLE: true,
+  UNKNOWN_CONVERSATION: true,
+} satisfies Record<ChatErrorCode, true>;
 
 const messageRoles = ["user", "assistant"] as const;
 const messageStatuses = ["pending", "complete", "failed"] as const;
@@ -183,6 +188,7 @@ function createPersistenceError(message: string): ChatError {
   return {
     code: "PERSISTENCE_UNAVAILABLE",
     message,
+    retryable: true,
   };
 }
 
@@ -253,8 +259,9 @@ function isChatError(value: unknown): value is ChatError {
   return (
     isRecord(value) &&
     typeof value.code === "string" &&
-    chatErrorCodes.includes(value.code as ChatError["code"]) &&
-    typeof value.message === "string"
+    value.code in knownChatErrorCodes &&
+    typeof value.message === "string" &&
+    typeof value.retryable === "boolean"
   );
 }
 
@@ -680,7 +687,7 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
             ? "This conversation is no longer available."
             : null}
         </div>
-        {state.status === "error" ? (
+        {state.status === "error" && state.error.retryable ? (
           <button onClick={retryMessage} type="button">
             Retry
           </button>

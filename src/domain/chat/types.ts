@@ -37,23 +37,56 @@ export interface ModelClient {
 export type StartConversationInput = {
   content: string;
   clientRequestId: string;
+  requestId: string;
 };
 
 export type AppendMessageInput = StartConversationInput & {
   conversationId: string;
 };
 
+export type ModelErrorCode =
+  "AUTH_FAILED" | "RATE_LIMITED" | "TIMEOUT" | "REFUSED" | "UNAVAILABLE";
+
+export class ModelError extends Error {
+  public constructor(
+    public readonly code: ModelErrorCode,
+    message: string,
+    options?: { cause?: unknown },
+  ) {
+    super(message, options);
+    this.name = "ModelError";
+  }
+}
+
 export type ChatErrorCode =
   | "CATALOG_UNAVAILABLE"
   | "INVALID_MESSAGE"
   | "INVALID_RETRIEVAL_PLAN"
+  | "MODEL_AUTH_FAILED"
+  | "MODEL_RATE_LIMITED"
+  | "MODEL_REFUSED"
+  | "MODEL_TIMEOUT"
   | "MODEL_UNAVAILABLE"
   | "PERSISTENCE_UNAVAILABLE"
   | "UNKNOWN_CONVERSATION";
 
+export const retryableByChatErrorCode = {
+  CATALOG_UNAVAILABLE: true,
+  INVALID_MESSAGE: false,
+  INVALID_RETRIEVAL_PLAN: false,
+  MODEL_AUTH_FAILED: false,
+  MODEL_RATE_LIMITED: true,
+  MODEL_REFUSED: false,
+  MODEL_TIMEOUT: true,
+  MODEL_UNAVAILABLE: true,
+  PERSISTENCE_UNAVAILABLE: true,
+  UNKNOWN_CONVERSATION: false,
+} satisfies Record<ChatErrorCode, boolean>;
+
 export type ChatError = {
   code: ChatErrorCode;
   message: string;
+  retryable: boolean;
 };
 
 export type ChatResponse =

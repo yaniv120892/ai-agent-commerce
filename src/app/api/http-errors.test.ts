@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ChatResponse } from "@/domain/chat/types";
+import type { ChatErrorCode, ChatResponse } from "@/domain/chat/types";
 
 import { jsonChatResponse } from "./http-errors";
 
@@ -14,7 +14,8 @@ const assistantMessage = {
 };
 
 function createErrorResponse(
-  code: "MODEL_UNAVAILABLE" | "PERSISTENCE_UNAVAILABLE",
+  code: ChatErrorCode,
+  retryable: boolean,
 ): ChatResponse {
   return {
     assistantMessage,
@@ -22,6 +23,7 @@ function createErrorResponse(
     error: {
       code,
       message: "Please retry.",
+      retryable,
     },
     status: "error",
   };
@@ -30,7 +32,7 @@ function createErrorResponse(
 describe("jsonChatResponse", () => {
   it("preserves the persisted conversation ID only for a recoverable persistence error", async () => {
     const response = jsonChatResponse(
-      createErrorResponse("PERSISTENCE_UNAVAILABLE"),
+      createErrorResponse("PERSISTENCE_UNAVAILABLE", true),
       201,
       "request-id",
     );
@@ -41,13 +43,14 @@ describe("jsonChatResponse", () => {
       error: {
         code: "PERSISTENCE_UNAVAILABLE",
         message: "Please retry.",
+        retryable: true,
       },
     });
   });
 
   it("does not mark arbitrary chat errors as recoverable conversation retries", async () => {
     const response = jsonChatResponse(
-      createErrorResponse("MODEL_UNAVAILABLE"),
+      createErrorResponse("MODEL_UNAVAILABLE", true),
       201,
       "request-id",
     );
@@ -56,7 +59,33 @@ describe("jsonChatResponse", () => {
       error: {
         code: "MODEL_UNAVAILABLE",
         message: "Please retry.",
+        retryable: true,
       },
     });
   });
+
+  it.each([
+    ["MODEL_AUTH_FAILED", false, 503],
+    ["MODEL_RATE_LIMITED", true, 429],
+    ["MODEL_REFUSED", false, 422],
+    ["MODEL_TIMEOUT", true, 504],
+  ] as const)(
+    "maps %s (retryable=%s) to status %i",
+    async (code, retryable, expectedStatus) => {
+      const response = jsonChatResponse(
+        createErrorResponse(code, retryable),
+        201,
+        "request-id",
+      );
+
+      expect(response.status).toBe(expectedStatus);
+      await expect(response.json()).resolves.toEqual({
+        error: {
+          code,
+          message: "Please retry.",
+          retryable,
+        },
+      });
+    },
+  );
 });

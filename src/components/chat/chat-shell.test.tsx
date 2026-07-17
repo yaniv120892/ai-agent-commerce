@@ -101,6 +101,7 @@ describe("ChatShell", () => {
             error: {
               code: "UNKNOWN_CONVERSATION",
               message: "This conversation is no longer available.",
+              retryable: false,
             },
           }),
           { status: 404 },
@@ -136,6 +137,7 @@ describe("ChatShell", () => {
                     code: "PERSISTENCE_UNAVAILABLE",
                     message:
                       "Conversation storage is unavailable. Please retry.",
+                    retryable: true,
                   },
                 },
                 503,
@@ -167,6 +169,46 @@ describe("ChatShell", () => {
       "/api/conversations",
       `/api/conversations/${createdConversationId}/messages`,
     ]);
+  });
+
+  it("does not offer Retry for a non-retryable model error, and preserves its own code and message", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, options?: RequestInit) => {
+        if (options?.method === "POST") {
+          return Promise.resolve(
+            jsonResponse(
+              {
+                conversationId: conversation.id,
+                error: {
+                  code: "MODEL_AUTH_FAILED",
+                  message:
+                    "The assistant is not configured correctly. Please contact support.",
+                  retryable: false,
+                },
+              },
+              503,
+            ),
+          );
+        }
+
+        return Promise.resolve(jsonResponse([]));
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<ChatShell initialConversation={conversation} />);
+    await user.type(screen.getByLabelText("Message"), "Find me a phone");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(
+      await screen.findByText(
+        "The assistant is not configured correctly. Please contact support.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Retry" }),
+    ).not.toBeInTheDocument();
   });
 
   it("displays a submitted user message in an existing conversation", async () => {

@@ -4,6 +4,7 @@ import {
   parseMessageRequest,
 } from "@/app/api/conversation-request";
 import {
+  createRequestId,
   jsonChatResponse,
   jsonError,
   unexpectedServerError,
@@ -15,7 +16,7 @@ type RouteContext = {
 };
 
 export async function POST(request: Request, context: RouteContext) {
-  const requestId = crypto.randomUUID();
+  const requestId = createRequestId();
   const { conversationId: rawConversationId } = await context.params;
   const conversationId = parseConversationId(rawConversationId);
 
@@ -25,6 +26,7 @@ export async function POST(request: Request, context: RouteContext) {
       "The conversation identifier is invalid.",
       422,
       requestId,
+      false,
     );
   }
 
@@ -36,6 +38,7 @@ export async function POST(request: Request, context: RouteContext) {
       `Message content must be between 1 and ${MESSAGE_CONTENT_MAX_LENGTH.toLocaleString("en-US")} characters.`,
       422,
       requestId,
+      false,
     );
   }
 
@@ -44,6 +47,7 @@ export async function POST(request: Request, context: RouteContext) {
     const response = await chatService.appendMessage({
       ...input,
       conversationId,
+      requestId,
     });
 
     return jsonChatResponse(response, 200, requestId);
