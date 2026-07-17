@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 
 import { deriveActiveContext } from "../src/domain/chat/active-context";
+import { allowedCategorySlugs } from "../src/domain/catalog/allowed-category-slugs";
 import { CatalogClient } from "../src/domain/catalog/catalog-client";
 import { CatalogResolver } from "../src/domain/catalog/catalog-resolver";
 import type { RetrievalIntent } from "../src/domain/catalog/types";
@@ -24,7 +25,6 @@ import type {
 } from "../src/domain/testing/scenario-evaluation";
 import { resolveOpenAIModelSelection } from "../src/lib/openai-model-config";
 
-const allowedCategorySlugs = ["laptops", "smartphones", "tablets"];
 const artifactsDirectory = resolve(process.cwd(), "artifacts/evaluations");
 
 // The real DummyJSON catalog decides its own search/browse results, so a

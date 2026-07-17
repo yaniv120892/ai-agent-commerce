@@ -4,6 +4,8 @@ import type { ProductCardSnapshot } from "@/domain/conversations/types";
 
 import {
   CatalogError,
+  catalogSorts,
+  retrievalIntents,
   type CatalogClientContract,
   type CatalogProduct,
   type ResolvedCatalogResult,
@@ -12,20 +14,13 @@ import {
 
 const retrievalPlanSchema = z
   .object({
-    intent: z.enum([
-      "search",
-      "browse_category",
-      "product_detail",
-      "compare",
-      "clarify",
-      "unsupported",
-    ]),
+    intent: z.enum(retrievalIntents),
     searchTerms: z.array(z.string().trim().min(1).max(100)).max(2),
     categorySlug: z.string().trim().min(1).max(100).nullable(),
     maxPrice: z.number().finite().nonnegative().max(1_000_000).nullable(),
     minRating: z.number().finite().min(0).max(5).nullable(),
     inStock: z.boolean().nullable(),
-    sort: z.enum(["relevance", "price_asc", "price_desc", "rating_desc"]),
+    sort: z.enum(catalogSorts),
     referencedProductIds: z.array(z.number().int().positive()).max(2),
     assistantMessage: z.string().trim().min(1).max(1_000).nullable(),
   })
