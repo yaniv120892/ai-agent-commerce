@@ -22,13 +22,13 @@ Copy the environment template, set `OPENAI_API_KEY` in `.env`, and run the appli
 
 ```bash
 cp .env.example .env
-docker compose up -d database
+docker compose up -d
 npm install
 npm run db:migrate
 npm run dev
 ```
 
-Open the URL printed by Next.js, normally `http://localhost:3000`. `npm run db:migrate` uses the local `DATABASE_URL` from `.env` and applies the committed Prisma migrations. The Compose service publishes PostgreSQL on `localhost:5432` and initializes an isolated `ai_commerce_test` database for integration and E2E tests.
+Open the URL printed by Next.js, normally `http://localhost:3000`. `npm run db:migrate` uses the local `DATABASE_URL` from `.env` and applies the committed Prisma migrations. The Compose stack publishes PostgreSQL on `localhost:5432` (initializing an isolated `ai_commerce_test` database for integration and E2E tests) and Redis on `localhost:6379`, used to cache DummyJSON catalog responses.
 
 The database is the persistence boundary:
 
@@ -79,7 +79,7 @@ The choices are intentionally plain:
 | LangChain, LangGraph, or Mastra         | A workflow framework would add abstraction around a single read-only catalog tool and conceal the request-to-recommendation flow rather than simplify it.                         |
 | SQLite                                  | PostgreSQL in Docker Compose better demonstrates a reproducible server-owned relational persistence boundary, migrations, and a separate test database.                           |
 | Raw `node-postgres` queries             | Hand-maintained SQL mapping and migrations would be more verbose. Prisma supplies generated TypeScript types and reviewed migrations while keeping repository ownership explicit. |
-| Hosted database                         | A hosted service would require authentication, authorization, tenancy, privacy, and network-resilience work outside this local project's scope.                                        |
+| Hosted database                         | A hosted service would require authentication, authorization, tenancy, privacy, and network-resilience work outside this local project's scope.                                   |
 
 The model/data boundary is strict. The planner emits a validated retrieval plan; it does not choose hosts, HTTP methods, paths, headers, or arbitrary URLs. The server is the only component allowed to retrieve catalog data, rank candidates, write the database, or construct product cards. The reply model receives only the selected trusted card data. Cards render from saved snapshot DTOs, never by parsing model prose, so past cards preserve the title, description, price, category, rating, and image that were actually recommended. They are not live price or availability guarantees.
 
@@ -88,6 +88,8 @@ Responses are deliberately non-streaming. A pending assistant state is clearer t
 ## Retrieval policy
 
 The catalog origin is fixed to `https://dummyjson.com`; `.env` cannot redirect it to another host. All upstream requests are read-only `GET`s and JSON is schema-validated. `DUMMYJSON_TIMEOUT_MS` configures the request timeout and defaults to 5,000 milliseconds; network or upstream-5xx failures get at most one retry.
+
+Successful, schema-validated catalog responses are cached in Redis so overlapping requests (e.g. many sessions searching "phones") don't each re-fetch DummyJSON. `CATALOG_CACHE_LIST_TTL_SECONDS` (default 300) covers search/category/full-list results; `CATALOG_CACHE_DETAIL_TTL_SECONDS` (default 1800) covers single-product lookups, which change less often. Errors are never cached. Because DummyJSON is a static demo dataset, a fixed TTL is sufficient and there is no active invalidation path; a live catalog source would need a change-notification event to invalidate affected keys. If Redis itself is unreachable, catalog requests fall through to DummyJSON directly rather than failing.
 
 | Request kind    | DummyJSON endpoint and server policy                                                      |
 | --------------- | ----------------------------------------------------------------------------------------- |
