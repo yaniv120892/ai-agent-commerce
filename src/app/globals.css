@@ -1,0 +1,207 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f6f7fb;
+  color: #172033;
+}
+
+button,
+textarea,
+a {
+  font: inherit;
+}
+
+button,
+a,
+textarea {
+  outline-offset: 3px;
+}
+
+button:focus-visible,
+a:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #2358d5;
+}
+
+button {
+  border: 0;
+  border-radius: 0.5rem;
+  background: #173f9f;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 0.7rem 1rem;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.chat-shell {
+  display: grid;
+  grid-template-columns: minmax(13rem, 18rem) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.conversation-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 1.25rem;
+  background: #172033;
+  color: #ffffff;
+}
+
+.conversation-sidebar h2 {
+  font-size: 0.9rem;
+  margin: 0 0 0.75rem;
+}
+
+.conversation-sidebar ul {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.conversation-sidebar a {
+  color: #dce7ff;
+}
+
+.new-conversation-button {
+  background: #ffffff;
+  color: #172033;
+}
+
+.chat-panel {
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  gap: 1rem;
+  margin: 0 auto;
+  max-width: 70rem;
+  min-height: 100vh;
+  padding: 2rem;
+  width: 100%;
+}
+
+.chat-panel__header p,
+.message__role,
+.product-card__category {
+  color: #5b6680;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.chat-panel__header h1 {
+  margin: 0.25rem 0 0;
+}
+
+.message-list {
+  display: grid;
+  gap: 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.message article,
+.empty-conversation {
+  border-radius: 0.75rem;
+  max-width: 48rem;
+  padding: 1rem;
+}
+
+.message--user article {
+  margin-left: auto;
+  background: #dce7ff;
+}
+
+.message--assistant article,
+.empty-conversation {
+  background: #ffffff;
+  border: 1px solid #dfe4ee;
+}
+
+.product-card-list {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  margin-top: 1rem;
+}
+
+.product-card {
+  border: 1px solid #dfe4ee;
+  border-radius: 0.6rem;
+  overflow: hidden;
+}
+
+.product-card img {
+  display: block;
+  height: 9rem;
+  object-fit: cover;
+  width: 100%;
+}
+
+.product-card__content {
+  padding: 0.75rem;
+}
+
+.product-card h3 {
+  margin: 0.25rem 0;
+}
+
+.product-card__price {
+  font-weight: 700;
+}
+
+.chat-status {
+  min-height: 1.5rem;
+}
+
+.chat-composer {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.chat-composer textarea {
+  border: 1px solid #a6b0c3;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  resize: vertical;
+}
+
+.chat-composer button {
+  justify-self: end;
+}
+
+.sr-only {
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+  clip: rect(0, 0, 0, 0);
+}
+
+@media (max-width: 700px) {
+  .chat-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .conversation-sidebar {
+    gap: 1rem;
+  }
+
+  .chat-panel {
+    min-height: auto;
+    padding: 1rem;
+  }
+}
