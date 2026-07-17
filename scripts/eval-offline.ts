@@ -88,6 +88,7 @@ async function evaluateScenario(
         selectedProductIds,
         plan.maxPrice,
         new Set(products.map((product) => product.id)),
+        plan.assistantMessage,
       ),
     );
   } catch (error) {

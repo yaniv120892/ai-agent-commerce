@@ -110,6 +110,7 @@ export function checkForbiddenBehavior(
   selectedProductIds: number[],
   planMaxPrice: number | null,
   groundedProductIds: Set<number>,
+  assistantMessage: string | null = null,
 ): string[] {
   const failures: string[] = [];
 
@@ -118,6 +119,15 @@ export function checkForbiddenBehavior(
     selectedProductIds.length > 0
   ) {
     failures.push("forbidden catalog retrieval occurred");
+  }
+
+  if (
+    forbiddenBehavior.includes("invalid_assistant_message") &&
+    isInvalidAssistantMessage(assistantMessage)
+  ) {
+    failures.push(
+      `assistant message is not a usable reply: ${JSON.stringify(assistantMessage)}`,
+    );
   }
 
   if (
@@ -136,6 +146,16 @@ export function checkForbiddenBehavior(
   }
 
   return failures;
+}
+
+function isInvalidAssistantMessage(assistantMessage: string | null): boolean {
+  if (assistantMessage === null) {
+    return true;
+  }
+
+  const normalized = assistantMessage.trim().toLowerCase();
+
+  return normalized.length === 0 || normalized === "null";
 }
 
 function createProductCard(
