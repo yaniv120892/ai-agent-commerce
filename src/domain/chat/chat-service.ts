@@ -13,14 +13,16 @@ import type {
   ProductCardSnapshot,
 } from "../conversations/types";
 
-import type {
-  ActiveRetrievalContext,
-  AppendMessageInput,
-  ChatErrorCode,
-  ChatResponse,
-  ModelClient,
-  PlanAttemptOutcome,
-  StartConversationInput,
+import {
+  ModelError,
+  retryableByChatErrorCode,
+  type ActiveRetrievalContext,
+  type AppendMessageInput,
+  type ChatErrorCode,
+  type ChatResponse,
+  type ModelClient,
+  type PlanAttemptOutcome,
+  type StartConversationInput,
 } from "./types";
 import { deriveActiveContext } from "./active-context";
 import {
@@ -44,16 +46,34 @@ type CatalogResolution = Pick<
 
 type PlanCreation = Pick<PlanRepairService, "createValidPlan">;
 
-type PlanFailure = {
-  code: Extract<ChatErrorCode, "INVALID_RETRIEVAL_PLAN" | "MODEL_UNAVAILABLE">;
-  message: string;
-};
-
 type MessageContext = {
   history: PersistedMessage[];
   priorProductIds: number[];
   activeContext: ActiveRetrievalContext | null;
 };
+
+type ModelChatErrorCode = Extract<
+  ChatErrorCode,
+  | "MODEL_AUTH_FAILED"
+  | "MODEL_RATE_LIMITED"
+  | "MODEL_REFUSED"
+  | "MODEL_TIMEOUT"
+  | "MODEL_UNAVAILABLE"
+>;
+
+const modelErrorMessageByChatErrorCode: Record<ModelChatErrorCode, string> = {
+  MODEL_AUTH_FAILED:
+    "The assistant is not configured correctly. Please contact support.",
+  MODEL_RATE_LIMITED:
+    "The assistant is receiving too many requests. Please retry in a moment.",
+  MODEL_REFUSED:
+    "The assistant could not generate a response for that request.",
+  MODEL_TIMEOUT: "The assistant took too long to respond. Please retry.",
+  MODEL_UNAVAILABLE: "The assistant is temporarily unavailable. Please retry.",
+};
+
+const INVALID_RETRIEVAL_PLAN_MESSAGE =
+  "The assistant could not turn that request into a valid catalog lookup. Try rephrasing.";
 
 export class ChatService {
   public constructor(
@@ -112,6 +132,7 @@ export class ChatService {
       assistantMessage,
       content,
       this.createMessageContext(conversation.messages),
+      input.requestId,
     );
   }
 
@@ -198,6 +219,7 @@ export class ChatService {
       assistantMessage,
       appendedReply.userMessageContent,
       messageContext,
+      input.requestId,
     );
   }
 
@@ -206,6 +228,7 @@ export class ChatService {
     assistantMessage: PersistedMessage,
     userMessage: string,
     messageContext: MessageContext,
+    requestId: string,
   ): Promise<ChatResponse> {
     let allowedCategorySlugs: string[];
 
@@ -232,11 +255,21 @@ export class ChatService {
         userMessage,
       });
     } catch (error) {
-      const planFailure = this.resolvePlanFailure(error);
+      if (
+        error instanceof CatalogError &&
+        error.code === "INVALID_RETRIEVAL_PLAN"
+      ) {
+        return this.failAssistantMessage(
+          "INVALID_RETRIEVAL_PLAN",
+          INVALID_RETRIEVAL_PLAN_MESSAGE,
+          conversationId,
+          assistantMessage,
+        );
+      }
 
-      return this.failAssistantMessage(
-        planFailure.code,
-        planFailure.message,
+      return this.failFromModelError(
+        error,
+        requestId,
         conversationId,
         assistantMessage,
       );
@@ -250,7 +283,7 @@ export class ChatService {
       if (plan.assistantMessage === null) {
         return this.failAssistantMessage(
           "INVALID_RETRIEVAL_PLAN",
-          "The assistant returned an invalid response. Please retry.",
+          INVALID_RETRIEVAL_PLAN_MESSAGE,
           conversationId,
           assistantMessage,
         );
@@ -269,7 +302,19 @@ export class ChatService {
     try {
       const result = await this.catalogResolver.resolve(plan);
       productCards = result.productCards;
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof CatalogError &&
+        error.code === "INVALID_RETRIEVAL_PLAN"
+      ) {
+        return this.failAssistantMessage(
+          "INVALID_RETRIEVAL_PLAN",
+          INVALID_RETRIEVAL_PLAN_MESSAGE,
+          conversationId,
+          assistantMessage,
+        );
+      }
+
       return this.failAssistantMessage(
         "CATALOG_UNAVAILABLE",
         "Catalog results are temporarily unavailable. Please retry.",
@@ -286,10 +331,10 @@ export class ChatService {
         products: productCards,
         userMessage,
       });
-    } catch {
-      return this.failAssistantMessage(
-        "MODEL_UNAVAILABLE",
-        "The assistant is temporarily unavailable. Please retry.",
+    } catch (error) {
+      return this.failFromModelError(
+        error,
+        requestId,
         conversationId,
         assistantMessage,
       );
@@ -372,6 +417,10 @@ export class ChatService {
       ChatErrorCode,
       | "CATALOG_UNAVAILABLE"
       | "INVALID_RETRIEVAL_PLAN"
+      | "MODEL_AUTH_FAILED"
+      | "MODEL_RATE_LIMITED"
+      | "MODEL_REFUSED"
+      | "MODEL_TIMEOUT"
       | "MODEL_UNAVAILABLE"
       | "PERSISTENCE_UNAVAILABLE"
     >,
@@ -397,6 +446,49 @@ export class ChatService {
       ...assistantMessage,
       status: "failed",
     });
+  }
+
+  private failFromModelError(
+    error: unknown,
+    requestId: string,
+    conversationId: string,
+    assistantMessage: PersistedMessage,
+  ): Promise<ChatResponse> {
+    const code = this.toModelChatErrorCode(error);
+    console.error("Model call failed", {
+      code,
+      conversationId,
+      error,
+      requestId,
+    });
+
+    return this.failAssistantMessage(
+      code,
+      modelErrorMessageByChatErrorCode[code],
+      conversationId,
+      assistantMessage,
+    );
+  }
+
+  private toModelChatErrorCode(error: unknown): ModelChatErrorCode {
+    if (!(error instanceof ModelError)) {
+      return "MODEL_UNAVAILABLE";
+    }
+
+    switch (error.code) {
+      case "AUTH_FAILED":
+        return "MODEL_AUTH_FAILED";
+      case "RATE_LIMITED":
+        return "MODEL_RATE_LIMITED";
+      case "REFUSED":
+        return "MODEL_REFUSED";
+      case "TIMEOUT":
+        return "MODEL_TIMEOUT";
+      case "UNAVAILABLE":
+        return "MODEL_UNAVAILABLE";
+      default:
+        return "MODEL_UNAVAILABLE";
+    }
   }
 
   private createMessageContext(messages: PersistedMessage[]): MessageContext {
@@ -445,23 +537,6 @@ export class ChatService {
     return content.slice(0, CONVERSATION_TITLE_MAX_LENGTH);
   }
 
-  private resolvePlanFailure(error: unknown): PlanFailure {
-    if (
-      error instanceof CatalogError &&
-      error.code === "INVALID_RETRIEVAL_PLAN"
-    ) {
-      return {
-        code: "INVALID_RETRIEVAL_PLAN",
-        message: "The assistant returned an invalid response. Please retry.",
-      };
-    }
-
-    return {
-      code: "MODEL_UNAVAILABLE",
-      message: "The assistant is temporarily unavailable. Please retry.",
-    };
-  }
-
   private logPlanValidation(planOutcome: PlanAttemptOutcome): void {
     console.info(
       JSON.stringify({
@@ -484,6 +559,7 @@ export class ChatService {
       error: {
         code,
         message,
+        retryable: retryableByChatErrorCode[code],
       },
       status: "error",
     };
