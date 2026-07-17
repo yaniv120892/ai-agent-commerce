@@ -72,6 +72,16 @@ function createCatalogClient() {
 }
 
 describe("CatalogResolver", () => {
+  it("delegates the allowed category allowlist to the catalog client", async () => {
+    const catalogClient = createCatalogClient();
+    catalogClient.listCategorySlugs.mockResolvedValue(["smartphones"]);
+    const resolver = new CatalogResolver(catalogClient);
+
+    await expect(resolver.listAllowedCategorySlugs()).resolves.toEqual([
+      "smartphones",
+    ]);
+  });
+
   it("filters a search result by max price and sorts ascending by price", async () => {
     const catalogClient = createCatalogClient();
     const resolver = new CatalogResolver(catalogClient);

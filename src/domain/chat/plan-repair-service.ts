@@ -12,22 +12,24 @@ type PlanValidation = Pick<PlanValidator, "validate">;
 
 type PlanCreation = Pick<ModelClient, "createRetrievalPlan">;
 
+type CreatePlanValidator = (allowedCategorySlugs: string[]) => PlanValidation;
+
 export class PlanRepairService {
   public constructor(
     private readonly modelClient: PlanCreation,
-    private readonly planValidator: PlanValidation,
-    private readonly allowedCategorySlugs: string[],
+    private readonly createPlanValidator: CreatePlanValidator,
   ) {}
 
   public async createValidPlan(
     input: PlanRequestInput,
   ): Promise<PlanAttemptOutcome> {
+    const planValidator = this.createPlanValidator(input.allowedCategorySlugs);
     const firstAttempt = await this.createPlan(input, null);
 
     try {
       return {
         firstPassValid: true,
-        plan: this.planValidator.validate(firstAttempt, input.priorProductIds),
+        plan: planValidator.validate(firstAttempt, input.priorProductIds),
         repairAttempted: false,
       };
     } catch (error) {
@@ -35,12 +37,13 @@ export class PlanRepairService {
         throw error;
       }
 
-      return this.repairPlan(input, firstAttempt, error.message);
+      return this.repairPlan(input, planValidator, firstAttempt, error.message);
     }
   }
 
   private async repairPlan(
     input: PlanRequestInput,
+    planValidator: PlanValidation,
     rejectedPlan: RetrievalPlan,
     validationError: string,
   ): Promise<PlanAttemptOutcome> {
@@ -51,7 +54,7 @@ export class PlanRepairService {
 
     return {
       firstPassValid: false,
-      plan: this.planValidator.validate(repairedPlan, input.priorProductIds),
+      plan: planValidator.validate(repairedPlan, input.priorProductIds),
       repairAttempted: true,
     };
   }
@@ -60,14 +63,7 @@ export class PlanRepairService {
     input: PlanRequestInput,
     repairContext: PlanRepairContext | null,
   ): Promise<RetrievalPlan> {
-    return this.modelClient.createRetrievalPlan({
-      activeContext: input.activeContext,
-      allowedCategorySlugs: this.allowedCategorySlugs,
-      history: input.history,
-      priorProductIds: input.priorProductIds,
-      repairContext,
-      userMessage: input.userMessage,
-    });
+    return this.modelClient.createRetrievalPlan({ ...input, repairContext });
   }
 
   private isInvalidPlanError(error: unknown): error is CatalogError {

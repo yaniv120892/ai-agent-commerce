@@ -41,14 +41,10 @@ async function evaluateScenario(
   const products = selectFixtureCatalog(scenario);
   const history = createHistory(scenario.priorMessages, getFixtureProduct);
   const priorProductIds = collectPriorProductIds(history);
-  const allowedCategorySlugs = [
-    ...new Set(products.map((product) => product.category)),
-  ];
   const resolver = new CatalogResolver(new FixtureCatalogClient(products));
   const planRepairService = new PlanRepairService(
     new DeterministicModelClient(),
-    new PlanValidator(allowedCategorySlugs),
-    allowedCategorySlugs,
+    (allowedCategorySlugs) => new PlanValidator(allowedCategorySlugs),
   );
   const failures: string[] = [];
   let actualIntent: RetrievalIntent | null = null;
@@ -59,8 +55,10 @@ async function evaluateScenario(
   let repairAttempted = false;
 
   try {
+    const allowedCategorySlugs = await resolver.listAllowedCategorySlugs();
     const planOutcome = await planRepairService.createValidPlan({
       activeContext: deriveActiveContext(history),
+      allowedCategorySlugs,
       history,
       priorProductIds,
       userMessage: scenario.currentInput,

@@ -4,40 +4,12 @@ import { getCatalogClient } from "@/app/api/catalog-dependencies";
 import { CatalogResolver } from "@/domain/catalog/catalog-resolver";
 import { PlanValidator } from "@/domain/catalog/plan-validator";
 import { ChatService } from "@/domain/chat/chat-service";
-import { OpenAIModelClient } from "@/domain/chat/openai-model-client";
+import { createModelClient } from "@/domain/chat/model-client-factory";
 import { PlanRepairService } from "@/domain/chat/plan-repair-service";
 import { ReplyCompletionCache } from "@/domain/chat/reply-completion-cache";
-import { DeterministicModelClient } from "@/domain/testing/deterministic-clients";
 import { ConversationRepository } from "@/domain/conversations/conversation-repository";
 import { prisma } from "@/lib/db/prisma";
 import { environment } from "@/lib/env";
-
-const allowedCategorySlugs = [
-  "beauty",
-  "fragrances",
-  "furniture",
-  "groceries",
-  "home-decoration",
-  "kitchen-accessories",
-  "laptops",
-  "mens-shirts",
-  "mens-shoes",
-  "mens-watches",
-  "mobile-accessories",
-  "motorcycle",
-  "skin-care",
-  "smartphones",
-  "sports-accessories",
-  "sunglasses",
-  "tablets",
-  "tops",
-  "vehicle",
-  "womens-bags",
-  "womens-dresses",
-  "womens-jewellery",
-  "womens-shoes",
-  "womens-watches",
-];
 
 type ConversationApiDependencies = {
   chatService: ChatService;
@@ -49,19 +21,19 @@ const replyCompletionCache = new ReplyCompletionCache();
 export function getConversationApiDependencies(): ConversationApiDependencies {
   const conversationRepository = new ConversationRepository(prisma);
   const catalogResolver = new CatalogResolver(getCatalogClient());
-  const modelClient = environment.e2eMode
-    ? new DeterministicModelClient()
-    : new OpenAIModelClient({
-        apiKey: environment.openAiApiKey,
-        maxOutputTokens: environment.openAiMaxOutputTokens,
-        maxRetries: environment.openAiMaxRetries,
-        models: environment.openAiModels,
-        timeoutMs: environment.openAiTimeoutMs,
-      });
+  const modelClient = createModelClient({
+    e2eMode: environment.e2eMode,
+    openAiConfig: {
+      apiKey: environment.openAiApiKey,
+      maxOutputTokens: environment.openAiMaxOutputTokens,
+      maxRetries: environment.openAiMaxRetries,
+      models: environment.openAiModels,
+      timeoutMs: environment.openAiTimeoutMs,
+    },
+  });
   const planRepairService = new PlanRepairService(
     modelClient,
-    new PlanValidator(allowedCategorySlugs),
-    allowedCategorySlugs,
+    (allowedCategorySlugs) => new PlanValidator(allowedCategorySlugs),
   );
 
   return {

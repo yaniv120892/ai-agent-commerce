@@ -32,6 +32,7 @@ function createRequest(
 ): PlanRequestInput {
   return {
     activeContext: null,
+    allowedCategorySlugs,
     history: [],
     priorProductIds: [],
     userMessage: "show me a phone",
@@ -45,8 +46,7 @@ function createService(
   const modelClient = { createRetrievalPlan: vi.fn(createRetrievalPlan) };
   const service = new PlanRepairService(
     modelClient,
-    new PlanValidator(allowedCategorySlugs),
-    allowedCategorySlugs,
+    (categorySlugs) => new PlanValidator(categorySlugs),
   );
 
   return { modelClient, service };
