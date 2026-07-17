@@ -11,6 +11,21 @@ type ConversationSidebarProperties = {
   onNewConversation: () => void;
 };
 
+function isConversationSummary(value: unknown): value is ConversationSummary {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    typeof value.id === "string" &&
+    "title" in value &&
+    typeof value.title === "string" &&
+    "createdAt" in value &&
+    typeof value.createdAt === "string" &&
+    "updatedAt" in value &&
+    typeof value.updatedAt === "string"
+  );
+}
+
 export function ConversationSidebar({
   activeConversationId,
   onConversationNavigate,
@@ -32,7 +47,7 @@ export function ConversationSidebar({
         const summaries: unknown = await response.json();
 
         if (isMounted && Array.isArray(summaries)) {
-          setConversations(summaries as ConversationSummary[]);
+          setConversations(summaries.filter(isConversationSummary));
         }
       } catch {
         return;
