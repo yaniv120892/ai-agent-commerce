@@ -1,5 +1,14 @@
 import type { RetrievalIntent } from "@/domain/catalog/types";
 
+export const forbiddenBehaviors = [
+  "catalog_retrieval",
+  "invalid_assistant_message",
+  "over_budget",
+  "ungrounded_cards",
+] as const;
+
+export type ForbiddenBehavior = (typeof forbiddenBehaviors)[number];
+
 export type ScenarioMessage = {
   content: string;
   productIds: number[];
@@ -17,7 +26,7 @@ export type Scenario = {
   currentInput: string;
   expectedIntent: RetrievalIntent;
   fixtureCatalog: { productIds: number[] };
-  forbiddenBehavior: string[];
+  forbiddenBehavior: ForbiddenBehavior[];
   name: string;
   priorMessages: ScenarioMessage[];
   requiredConstraints: ScenarioRequiredConstraints;
