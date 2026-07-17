@@ -1,4 +1,4 @@
-import type { RetrievalIntent } from "@/domain/catalog/types";
+import type { CatalogSort, RetrievalIntent } from "@/domain/catalog/types";
 
 import type { ScenarioVerdict } from "./evaluation-gate.types";
 
@@ -18,10 +18,13 @@ export type ScenarioMessage = {
 };
 
 export type ScenarioRequiredConstraints = {
+  categorySlug?: string;
+  inStock?: boolean;
   maxPrice?: number;
   referencedProductIds?: number[];
   searchTerm?: string;
   selectedProductIds?: number[];
+  sort?: CatalogSort;
 };
 
 export type Scenario = {
@@ -36,9 +39,12 @@ export type Scenario = {
 
 export type ScenarioPlanSummary = {
   assistantMessage: string | null;
+  categorySlug: string | null;
+  inStock: boolean | null;
   maxPrice: number | null;
   referencedProductIds: number[];
   searchTerms: string[];
+  sort: CatalogSort;
 };
 
 export type EvaluationCaseResult = {
