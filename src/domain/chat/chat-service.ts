@@ -1,6 +1,7 @@
 import type { CatalogResolver } from "../catalog/catalog-resolver";
 import { CatalogError } from "../catalog/types";
 import type { ConversationRepository } from "../conversations/conversation-repository";
+import { MESSAGE_CONTENT_MAX_LENGTH } from "../conversations/constants";
 import type {
   AppendedAssistantReply,
   PersistedConversation,
@@ -54,12 +55,13 @@ export class ChatService {
     if (content === null) {
       return this.createErrorResponse(
         "INVALID_MESSAGE",
-        "Message content must be between 1 and 2,000 characters.",
+        `Message content must be between 1 and ${MESSAGE_CONTENT_MAX_LENGTH.toLocaleString("en-US")} characters.`,
         null,
         null,
       );
     }
 
+    const title = await this.createConversationTitle(content);
     let conversation: PersistedConversation;
 
     try {
@@ -67,7 +69,7 @@ export class ChatService {
         await this.conversationRepository.createConversationWithPendingReply({
           clientRequestId: input.clientRequestId,
           content,
-          title: this.createConversationTitle(content),
+          title,
         });
     } catch {
       return this.createErrorResponse(
@@ -103,7 +105,7 @@ export class ChatService {
     if (content === null) {
       return this.createErrorResponse(
         "INVALID_MESSAGE",
-        "Message content must be between 1 and 2,000 characters.",
+        `Message content must be between 1 and ${MESSAGE_CONTENT_MAX_LENGTH.toLocaleString("en-US")} characters.`,
         input.conversationId,
         null,
       );
@@ -399,15 +401,24 @@ export class ChatService {
   private validateMessage(content: string): string | null {
     const trimmedContent = content.trim();
 
-    if (trimmedContent.length === 0 || trimmedContent.length > 2_000) {
+    if (
+      trimmedContent.length === 0 ||
+      trimmedContent.length > MESSAGE_CONTENT_MAX_LENGTH
+    ) {
       return null;
     }
 
     return trimmedContent;
   }
 
-  private createConversationTitle(content: string): string {
-    return content.slice(0, 80);
+  private async createConversationTitle(content: string): Promise<string> {
+    try {
+      return await this.modelClient.createConversationTitle({
+        userMessage: content,
+      });
+    } catch {
+      return content.slice(0, 80);
+    }
   }
 
   private createErrorResponse(
