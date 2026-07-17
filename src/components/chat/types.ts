@@ -44,7 +44,11 @@ export type ChatUiState =
     };
 
 export type ChatUiAction =
-  | { type: "send"; request: PendingRequest }
+  | {
+      type: "send";
+      conversation: PersistedConversation;
+      request: PendingRequest;
+    }
   | {
       type: "pending";
       conversation: PersistedConversation;
