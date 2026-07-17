@@ -122,6 +122,7 @@ function createLocalUserMessage(
     lastCategorySlug: null,
     lastSearchTerms: [],
     productCards: [],
+    retrievalAnchorMessage: null,
     role: "user",
     status: "complete",
   };
@@ -135,6 +136,7 @@ function createPendingAssistantMessage(requestId: string): PersistedMessage {
     lastCategorySlug: null,
     lastSearchTerms: [],
     productCards: [],
+    retrievalAnchorMessage: null,
     role: "assistant",
     status: "pending",
   };

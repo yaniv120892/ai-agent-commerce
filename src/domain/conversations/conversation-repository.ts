@@ -75,6 +75,7 @@ type CompleteAssistantMessageInput = {
   productCards: ProductCardSnapshot[];
   lastSearchTerms: string[];
   lastCategorySlug: string | null;
+  retrievalAnchorMessage: string | null;
 };
 
 type FailAssistantMessageInput = {
@@ -236,6 +237,7 @@ export class ConversationRepository {
           content: input.content,
           lastCategorySlug: input.lastCategorySlug,
           lastSearchTerms: input.lastSearchTerms,
+          retrievalAnchorMessage: input.retrievalAnchorMessage,
           status: "complete",
         },
         where: {
@@ -438,6 +440,7 @@ export class ConversationRepository {
       productCards: message.productCards.map((productCard) =>
         this.mapProductCard(productCard),
       ),
+      retrievalAnchorMessage: message.retrievalAnchorMessage,
       role: message.role,
       status: message.status,
     };

@@ -56,6 +56,7 @@ function createPlan(
     minRating: null,
     inStock: null,
     sort: "relevance",
+    isContinuation: false,
     referencedProductIds: [],
     assistantMessage: null,
     ...overrides,
@@ -267,6 +268,55 @@ describe("CatalogResolver", () => {
     const result = await resolver.resolve(createPlan(), allowedCategorySlugs);
 
     expect(result.productCards).toHaveLength(6);
+  });
+
+  it("does not exclude prior product IDs when isContinuation is false", async () => {
+    const catalogClient = createCatalogClient();
+    const resolver = new CatalogResolver(catalogClient);
+
+    const result = await resolver.resolve(
+      createPlan(),
+      allowedCategorySlugs,
+      [1, 2, 3],
+    );
+
+    expect(result.productCards.map((product) => product.productId)).toEqual([
+      1, 2, 3,
+    ]);
+  });
+
+  it("excludes prior product IDs from the ranked list before the six-card cap when isContinuation is true", async () => {
+    const catalogClient = createCatalogClient();
+    catalogClient.searchProducts.mockResolvedValue(
+      Array.from({ length: 9 }, (_, index) => ({
+        ...catalogProducts[0],
+        id: index + 1,
+      })),
+    );
+    const resolver = new CatalogResolver(catalogClient);
+
+    const result = await resolver.resolve(
+      createPlan({ isContinuation: true }),
+      allowedCategorySlugs,
+      [1, 2, 3, 4, 5, 6],
+    );
+
+    expect(result.productCards.map((product) => product.productId)).toEqual([
+      7, 8, 9,
+    ]);
+  });
+
+  it("returns an empty result rather than throwing when a continuation has already shown every candidate", async () => {
+    const catalogClient = createCatalogClient();
+    const resolver = new CatalogResolver(catalogClient);
+
+    const result = await resolver.resolve(
+      createPlan({ isContinuation: true }),
+      allowedCategorySlugs,
+      [1, 2, 3],
+    );
+
+    expect(result.productCards).toEqual([]);
   });
 });
 

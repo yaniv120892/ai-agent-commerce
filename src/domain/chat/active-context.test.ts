@@ -27,6 +27,7 @@ function createMessage(
     lastCategorySlug: null,
     lastSearchTerms: [],
     productCards: [],
+    retrievalAnchorMessage: null,
     role: "user",
     status: "complete",
     ...overrides,
@@ -58,6 +59,7 @@ describe("deriveActiveContext", () => {
     expect(deriveActiveContext(history)).toEqual({
       categorySlug: "smartphones",
       lastAttemptedSearch: null,
+      lastResolvedUserMessage: null,
     });
   });
 
@@ -76,6 +78,7 @@ describe("deriveActiveContext", () => {
     expect(deriveActiveContext(history)).toEqual({
       categorySlug: "smartphones",
       lastAttemptedSearch: null,
+      lastResolvedUserMessage: null,
     });
   });
 
@@ -93,6 +96,7 @@ describe("deriveActiveContext", () => {
     expect(deriveActiveContext(history)).toEqual({
       categorySlug: "smartphones",
       lastAttemptedSearch: null,
+      lastResolvedUserMessage: null,
     });
   });
 
@@ -114,6 +118,7 @@ describe("deriveActiveContext", () => {
     expect(deriveActiveContext(history)).toEqual({
       categorySlug: "smartphones",
       lastAttemptedSearch: null,
+      lastResolvedUserMessage: null,
     });
   });
 
@@ -133,6 +138,7 @@ describe("deriveActiveContext", () => {
         categorySlug: null,
         searchTerms: ["purple", "phone"],
       },
+      lastResolvedUserMessage: null,
     });
   });
 
@@ -149,6 +155,7 @@ describe("deriveActiveContext", () => {
     expect(deriveActiveContext(history)).toEqual({
       categorySlug: null,
       lastAttemptedSearch: { categorySlug: "mens-shoes", searchTerms: [] },
+      lastResolvedUserMessage: null,
     });
   });
 
@@ -162,6 +169,23 @@ describe("deriveActiveContext", () => {
     ];
 
     expect(deriveActiveContext(history)).toBeNull();
+  });
+
+  it("surfaces the most recent retrieval anchor as lastResolvedUserMessage regardless of category derivation", () => {
+    const history = [
+      createMessage({ content: "Show me phones", role: "user" }),
+      createMessage({
+        productCards: [{ ...productCard, productId: 101 }],
+        retrievalAnchorMessage: "Show me phones",
+        role: "assistant",
+      }),
+    ];
+
+    expect(deriveActiveContext(history)).toEqual({
+      categorySlug: "smartphones",
+      lastAttemptedSearch: null,
+      lastResolvedUserMessage: "Show me phones",
+    });
   });
 
   it("does not resurface an older resolved category across an intervening zero-result turn", () => {

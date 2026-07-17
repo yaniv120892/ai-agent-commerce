@@ -16,10 +16,20 @@ export function deriveActiveContext(
     return null;
   }
 
+  const lastAnchorMessage = [...history]
+    .reverse()
+    .find(
+      (message) =>
+        message.role === "assistant" && message.retrievalAnchorMessage !== null,
+    );
+  const lastResolvedUserMessage =
+    lastAnchorMessage?.retrievalAnchorMessage ?? null;
+
   if (lastAssistantMessage.productCards.length > 0) {
     return {
       categorySlug: deriveDominantCategory(lastAssistantMessage.productCards),
       lastAttemptedSearch: null,
+      lastResolvedUserMessage,
     };
   }
 
@@ -27,16 +37,19 @@ export function deriveActiveContext(
     lastAssistantMessage.lastSearchTerms.length > 0 ||
     lastAssistantMessage.lastCategorySlug !== null;
 
-  if (!attemptedSearch) {
+  if (!attemptedSearch && lastResolvedUserMessage === null) {
     return null;
   }
 
   return {
     categorySlug: null,
-    lastAttemptedSearch: {
-      categorySlug: lastAssistantMessage.lastCategorySlug,
-      searchTerms: lastAssistantMessage.lastSearchTerms,
-    },
+    lastAttemptedSearch: attemptedSearch
+      ? {
+          categorySlug: lastAssistantMessage.lastCategorySlug,
+          searchTerms: lastAssistantMessage.lastSearchTerms,
+        }
+      : null,
+    lastResolvedUserMessage,
   };
 }
 
