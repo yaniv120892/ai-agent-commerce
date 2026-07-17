@@ -19,7 +19,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "eval:offline": "tsx scripts/eval-offline.ts",
-    "eval:online": "tsx scripts/eval-online.ts"
+    "eval:online": "tsx scripts/eval-online.ts",
+    "worktree:setup": "tsx scripts/setup-worktree-env.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
