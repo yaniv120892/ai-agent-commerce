@@ -18,8 +18,6 @@ import { PlanRepairService } from "./plan-repair-service";
 import { createOpenAIClient, OpenAIModelClient } from "./openai-model-client";
 import type { ModelClient } from "./types";
 
-const allowedCategorySlugs = ["smartphones"];
-
 const productCards: ProductCardSnapshot[] = [
   {
     category: "smartphones",
@@ -103,6 +101,7 @@ function createDependencies() {
     getConversation: vi.fn().mockResolvedValue(createConversation([])),
   };
   const catalogResolver = {
+    listAllowedCategorySlugs: vi.fn().mockResolvedValue(["smartphones"]),
     resolve: vi.fn().mockResolvedValue({ productCards }),
   };
   const modelClient: ModelClient = {
@@ -112,8 +111,7 @@ function createDependencies() {
 
   const planRepairService = new PlanRepairService(
     modelClient,
-    new PlanValidator(allowedCategorySlugs),
-    allowedCategorySlugs,
+    (categorySlugs) => new PlanValidator(categorySlugs),
   );
 
   return {
@@ -320,6 +318,40 @@ describe("ChatService", () => {
       conversationId: "conversation-id",
       messageId: "assistant-message-id",
     });
+    expect(catalogResolver.resolve).not.toHaveBeenCalled();
+  });
+
+  it("marks the persisted assistant reply failed when the category allowlist is unavailable", async () => {
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
+    catalogResolver.listAllowedCategorySlugs.mockRejectedValue(
+      new Error("catalog unavailable"),
+    );
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      planRepairService,
+    );
+
+    const response = await service.startConversation({
+      clientRequestId: "request-id",
+      content: "Find me a phone",
+    });
+
+    expect(response).toMatchObject({
+      error: { code: "CATALOG_UNAVAILABLE" },
+      status: "error",
+    });
+    expect(conversationRepository.failAssistantMessage).toHaveBeenCalledWith({
+      conversationId: "conversation-id",
+      messageId: "assistant-message-id",
+    });
+    expect(modelClient.createRetrievalPlan).not.toHaveBeenCalled();
     expect(catalogResolver.resolve).not.toHaveBeenCalled();
   });
 

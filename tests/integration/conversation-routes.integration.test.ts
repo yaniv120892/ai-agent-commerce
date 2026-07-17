@@ -31,8 +31,6 @@ const productCards: ProductCardSnapshot[] = [
   },
 ];
 
-const allowedCategorySlugs = ["smartphones"];
-
 const retrievalPlan: RetrievalPlan = {
   assistantMessage: null,
   categorySlug: null,
@@ -48,6 +46,7 @@ const retrievalPlan: RetrievalPlan = {
 describe("conversation routes", () => {
   const repository = new ConversationRepository(prisma);
   const catalogResolver = {
+    listAllowedCategorySlugs: vi.fn().mockResolvedValue(["smartphones"]),
     resolve: vi.fn().mockResolvedValue({ productCards }),
   };
   const modelClient: ModelClient = {
@@ -60,8 +59,7 @@ describe("conversation routes", () => {
     modelClient,
     new PlanRepairService(
       modelClient,
-      new PlanValidator(allowedCategorySlugs),
-      allowedCategorySlugs,
+      (categorySlugs) => new PlanValidator(categorySlugs),
     ),
   );
 

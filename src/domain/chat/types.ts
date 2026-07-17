@@ -24,10 +24,7 @@ export type ModelPlanInput = {
   repairContext: PlanRepairContext | null;
 };
 
-export type PlanRequestInput = Omit<
-  ModelPlanInput,
-  "allowedCategorySlugs" | "repairContext"
->;
+export type PlanRequestInput = Omit<ModelPlanInput, "repairContext">;
 
 export type PlanAttemptOutcome = {
   plan: ValidatedRetrievalPlan;

@@ -37,7 +37,10 @@ type ConversationStore = Pick<
   | "getConversation"
 >;
 
-type CatalogResolution = Pick<CatalogResolver, "resolve">;
+type CatalogResolution = Pick<
+  CatalogResolver,
+  "listAllowedCategorySlugs" | "resolve"
+>;
 
 type PlanCreation = Pick<PlanRepairService, "createValidPlan">;
 
@@ -204,11 +207,26 @@ export class ChatService {
     userMessage: string,
     messageContext: MessageContext,
   ): Promise<ChatResponse> {
+    let allowedCategorySlugs: string[];
+
+    try {
+      allowedCategorySlugs =
+        await this.catalogResolver.listAllowedCategorySlugs();
+    } catch {
+      return this.failAssistantMessage(
+        "CATALOG_UNAVAILABLE",
+        "Catalog categories are temporarily unavailable. Please retry.",
+        conversationId,
+        assistantMessage,
+      );
+    }
+
     let planOutcome: PlanAttemptOutcome;
 
     try {
       planOutcome = await this.planRepairService.createValidPlan({
         activeContext: messageContext.activeContext,
+        allowedCategorySlugs,
         history: messageContext.history,
         priorProductIds: messageContext.priorProductIds,
         userMessage,

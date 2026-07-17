@@ -17,6 +17,10 @@ type RankedProduct = {
 export class CatalogResolver {
   public constructor(private readonly catalogClient: CatalogClientContract) {}
 
+  public async listAllowedCategorySlugs(): Promise<string[]> {
+    return this.catalogClient.listCategorySlugs();
+  }
+
   public async resolve(
     plan: ValidatedRetrievalPlan,
   ): Promise<ResolvedCatalogResult> {
