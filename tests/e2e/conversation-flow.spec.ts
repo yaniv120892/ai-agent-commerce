@@ -18,7 +18,19 @@ test("persists product cards and resumes a prior conversation from the sidebar",
   await sendButton.click();
 
   const firstProductCard = page.locator(".product-card").first();
+  const firstProductImage = firstProductCard.locator("img");
   await expect(firstProductCard).toBeVisible();
+  await expect(firstProductImage).toHaveAttribute(
+    "src",
+    /^data:image\/svg\+xml,/u,
+  );
+  const imageLoadState = await firstProductImage.evaluate((image) => ({
+    complete: image.complete,
+    naturalWidth: image.naturalWidth,
+  }));
+
+  expect(imageLoadState.complete).toBe(true);
+  expect(imageLoadState.naturalWidth).toBeGreaterThan(0);
 
   const savedTitle = await firstProductCard.getByRole("heading").textContent();
   const savedPrice = await firstProductCard
