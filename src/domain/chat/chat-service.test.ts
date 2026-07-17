@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, expect, it, vi } from "vitest";
 
 import type { RetrievalPlan } from "@/domain/catalog/types";
@@ -8,7 +10,7 @@ import type {
 } from "@/domain/conversations/types";
 
 import { ChatService } from "./chat-service";
-import { OpenAIModelClient } from "./openai-model-client";
+import { createOpenAIClient, OpenAIModelClient } from "./openai-model-client";
 import type { ModelClient } from "./types";
 
 const productCards: ProductCardSnapshot[] = [
@@ -595,11 +597,30 @@ describe("ChatService", () => {
 });
 
 describe("OpenAIModelClient", () => {
+  const modelClientConfig = {
+    apiKey: "test-key",
+    maxOutputTokens: 2000,
+    maxRetries: 1,
+    timeoutMs: 20000,
+  };
+
+  it("constructs the OpenAI client with bounded timeout and retries", () => {
+    const openAiClient = createOpenAIClient({
+      apiKey: "test-key",
+      maxOutputTokens: 500,
+      maxRetries: 1,
+      timeoutMs: 1234,
+    });
+
+    expect(openAiClient.timeout).toBe(1234);
+    expect(openAiClient.maxRetries).toBe(1);
+  });
+
   it("requests strict structured output for every retrieval-plan field", async () => {
     const parse = vi.fn().mockResolvedValue({
       output_parsed: createPlan(),
     });
-    const client = new OpenAIModelClient("test-key", {
+    const client = new OpenAIModelClient(modelClientConfig, {
       responses: {
         create: vi.fn(),
         parse,
@@ -617,6 +638,7 @@ describe("OpenAIModelClient", () => {
     expect(plan).toEqual(createPlan());
     expect(parse).toHaveBeenCalledWith(
       expect.objectContaining({
+        max_output_tokens: 2000,
         model: "gpt-5.4-mini",
         text: expect.objectContaining({
           format: expect.objectContaining({
@@ -652,7 +674,7 @@ describe("OpenAIModelClient", () => {
     const create = vi.fn().mockResolvedValue({
       output_text: "Phone Ultra is a fit.",
     });
-    const client = new OpenAIModelClient("test-key", {
+    const client = new OpenAIModelClient(modelClientConfig, {
       responses: {
         create,
         parse: vi.fn(),
@@ -667,7 +689,10 @@ describe("OpenAIModelClient", () => {
 
     expect(reply).toBe("Phone Ultra is a fit.");
     expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ model: "gpt-5.4-mini" }),
+      expect.objectContaining({
+        max_output_tokens: 2000,
+        model: "gpt-5.4-mini",
+      }),
     );
     expect(create.mock.calls[0][0].input[0].content).toContain(
       "facts not included in the provided product snapshots",
@@ -681,7 +706,7 @@ describe("OpenAIModelClient", () => {
     const create = vi.fn().mockResolvedValue({
       output_text: `  ${"Cheapest smartphones under budget ".repeat(3)}  `,
     });
-    const client = new OpenAIModelClient("test-key", {
+    const client = new OpenAIModelClient(modelClientConfig, {
       responses: {
         create,
         parse: vi.fn(),
@@ -694,7 +719,10 @@ describe("OpenAIModelClient", () => {
 
     expect(title).toHaveLength(60);
     expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ model: "gpt-5.4-mini" }),
+      expect.objectContaining({
+        max_output_tokens: 2000,
+        model: "gpt-5.4-mini",
+      }),
     );
     expect(create.mock.calls[0][0].input[0].content).toContain(
       "short conversation title",
@@ -702,5 +730,59 @@ describe("OpenAIModelClient", () => {
     expect(create.mock.calls[0][0].input[1].content).toBe(
       "What is the cheapest phone you have?",
     );
+  });
+
+  it("reports token truncation rather than an empty-result error", async () => {
+    const truncatedResponse = {
+      incomplete_details: { reason: "max_output_tokens" },
+      output_parsed: null,
+      output_text: "",
+    };
+    const client = new OpenAIModelClient(modelClientConfig, {
+      responses: {
+        create: vi.fn().mockResolvedValue(truncatedResponse),
+        parse: vi.fn().mockResolvedValue(truncatedResponse),
+      },
+    });
+
+    await expect(
+      client.createRetrievalPlan({
+        activeContext: { categorySlug: null },
+        allowedCategorySlugs: ["smartphones"],
+        history: [],
+        priorProductIds: [],
+        userMessage: "Find a phone",
+      }),
+    ).rejects.toThrow(/retrieval plan was truncated at max_output_tokens/);
+
+    await expect(
+      client.createGroundedReply({
+        intent: "search",
+        products: productCards,
+        userMessage: "Find a phone",
+      }),
+    ).rejects.toThrow(/grounded reply was truncated at max_output_tokens/);
+
+    await expect(
+      client.createConversationTitle({ userMessage: "Find a phone" }),
+    ).rejects.toThrow(/conversation title was truncated at max_output_tokens/);
+  });
+
+  it("does not report truncation when the response completes normally", async () => {
+    const create = vi.fn().mockResolvedValue({
+      incomplete_details: null,
+      output_text: "Phone Ultra is a fit.",
+    });
+    const client = new OpenAIModelClient(modelClientConfig, {
+      responses: { create, parse: vi.fn() },
+    });
+
+    await expect(
+      client.createGroundedReply({
+        intent: "search",
+        products: productCards,
+        userMessage: "Find a phone",
+      }),
+    ).resolves.toBe("Phone Ultra is a fit.");
   });
 });
