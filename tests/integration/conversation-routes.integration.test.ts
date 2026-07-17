@@ -44,18 +44,14 @@ const retrievalPlan: RetrievalPlan = {
 describe("conversation routes", () => {
   const repository = new ConversationRepository(prisma);
   const catalogResolver = {
+    listAllowedCategorySlugs: vi.fn().mockResolvedValue(["smartphones"]),
     resolve: vi.fn().mockResolvedValue({ productCards }),
   };
   const modelClient: ModelClient = {
     createGroundedReply: vi.fn().mockResolvedValue("Phone Ultra is a match."),
     createRetrievalPlan: vi.fn().mockResolvedValue(retrievalPlan),
   };
-  const chatService = new ChatService(
-    repository,
-    catalogResolver,
-    modelClient,
-    ["smartphones"],
-  );
+  const chatService = new ChatService(repository, catalogResolver, modelClient);
 
   beforeEach(async () => {
     await prisma.messageProductCard.deleteMany();

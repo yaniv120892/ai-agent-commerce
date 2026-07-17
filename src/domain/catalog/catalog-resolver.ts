@@ -38,20 +38,22 @@ type RankedProduct = {
 };
 
 export class CatalogResolver {
-  private readonly allowedCategorySlugs: Set<string>;
+  public constructor(private readonly catalogClient: CatalogClientContract) {}
 
-  public constructor(
-    private readonly catalogClient: CatalogClientContract,
-    allowedCategorySlugs: string[],
-  ) {
-    this.allowedCategorySlugs = new Set(allowedCategorySlugs);
+  public async listAllowedCategorySlugs(): Promise<string[]> {
+    return this.catalogClient.listCategorySlugs();
   }
 
   public async resolve(
     plan: RetrievalPlan,
     priorProductIds: number[],
   ): Promise<ResolvedCatalogResult> {
-    const validatedPlan = this.validatePlan(plan, priorProductIds);
+    const allowedCategorySlugs = await this.listAllowedCategorySlugs();
+    const validatedPlan = this.validatePlan(
+      plan,
+      priorProductIds,
+      new Set(allowedCategorySlugs),
+    );
     const products = await this.retrieveProducts(validatedPlan);
     const productCards = this.rankProducts(products, validatedPlan).map(
       (product) => this.mapProductCard(product),
@@ -65,6 +67,7 @@ export class CatalogResolver {
   private validatePlan(
     plan: RetrievalPlan,
     priorProductIds: number[],
+    allowedCategorySlugs: Set<string>,
   ): RetrievalPlan {
     const parsedPlan = retrievalPlanSchema.safeParse(plan);
 
@@ -81,7 +84,7 @@ export class CatalogResolver {
 
     if (
       validatedPlan.categorySlug !== null &&
-      !this.allowedCategorySlugs.has(validatedPlan.categorySlug)
+      !allowedCategorySlugs.has(validatedPlan.categorySlug)
     ) {
       throw new CatalogError(
         "INVALID_RETRIEVAL_PLAN",

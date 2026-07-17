@@ -24,7 +24,6 @@ import type {
 } from "../src/domain/testing/scenario-evaluation";
 import { resolveOpenAIModelSelection } from "../src/lib/openai-model-config";
 
-const allowedCategorySlugs = ["laptops", "smartphones", "tablets"];
 const artifactsDirectory = resolve(process.cwd(), "artifacts/evaluations");
 
 // The real DummyJSON catalog decides its own search/browse results, so a
@@ -43,6 +42,7 @@ async function evaluateScenario(
   scenario: Scenario,
   modelClient: ModelClient,
   catalogResolver: CatalogResolver,
+  allowedCategorySlugs: string[],
 ): Promise<EvaluationCaseResult> {
   const startedAt = performance.now();
   const history = createHistory(scenario.priorMessages, getFixtureProduct);
@@ -150,10 +150,8 @@ async function main(): Promise<void> {
 
   const scenarios = await loadScenarios();
   const catalogClient = new CatalogClient(fetch, "https://dummyjson.com", 5000);
-  const catalogResolver = new CatalogResolver(
-    catalogClient,
-    allowedCategorySlugs,
-  );
+  const catalogResolver = new CatalogResolver(catalogClient);
+  const allowedCategorySlugs = await catalogResolver.listAllowedCategorySlugs();
   const { OpenAIModelClient } =
     await import("../src/domain/chat/openai-model-client");
   const models = resolveOpenAIModelSelection(process.env);
@@ -174,6 +172,7 @@ async function main(): Promise<void> {
       scenario,
       modelClient,
       catalogResolver,
+      allowedCategorySlugs,
     );
 
     results.push(result);
