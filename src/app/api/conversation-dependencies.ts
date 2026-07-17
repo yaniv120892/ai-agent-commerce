@@ -1,20 +1,14 @@
 import "server-only";
 
-import { CachingCatalogClient } from "@/domain/catalog/caching-catalog-client";
-import { CatalogClient } from "@/domain/catalog/catalog-client";
+import { getCatalogClient } from "@/app/api/catalog-dependencies";
 import { CatalogResolver } from "@/domain/catalog/catalog-resolver";
-import type { CatalogClientContract } from "@/domain/catalog/types";
 import { ChatService } from "@/domain/chat/chat-service";
 import { OpenAIModelClient } from "@/domain/chat/openai-model-client";
 import { ReplyCompletionCache } from "@/domain/chat/reply-completion-cache";
-import {
-  DeterministicModelClient,
-  FixtureCatalogClient,
-} from "@/domain/testing/deterministic-clients";
+import { DeterministicModelClient } from "@/domain/testing/deterministic-clients";
 import { ConversationRepository } from "@/domain/conversations/conversation-repository";
 import { prisma } from "@/lib/db/prisma";
 import { environment } from "@/lib/env";
-import { redisClient } from "@/lib/redis/redis-client";
 
 const allowedCategorySlugs = [
   "beauty",
@@ -49,25 +43,11 @@ type ConversationApiDependencies = {
 };
 
 const replyCompletionCache = new ReplyCompletionCache();
-const catalogClient: CatalogClientContract = environment.e2eMode
-  ? new FixtureCatalogClient()
-  : new CachingCatalogClient(
-      new CatalogClient(
-        fetch,
-        environment.dummyJsonBaseUrl,
-        environment.dummyJsonTimeoutMs,
-      ),
-      redisClient,
-      {
-        listTtlSeconds: environment.catalogCacheListTtlSeconds,
-        detailTtlSeconds: environment.catalogCacheDetailTtlSeconds,
-      },
-    );
 
 export function getConversationApiDependencies(): ConversationApiDependencies {
   const conversationRepository = new ConversationRepository(prisma);
   const catalogResolver = new CatalogResolver(
-    catalogClient,
+    getCatalogClient(),
     allowedCategorySlugs,
   );
   const modelClient = environment.e2eMode

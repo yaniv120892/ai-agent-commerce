@@ -66,3 +66,41 @@ test("persists product cards and resumes a prior conversation from the sidebar",
   await expect(page.getByText(savedPrice ?? "", { exact: true })).toBeVisible();
   expect(externalImageRequests).toEqual([]);
 });
+
+test("opens a product's detail page in a new tab when its card is clicked", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByLabel("Message").fill("show phones under $400");
+  const sendButton = page.getByRole("button", { name: "Send" });
+  await expect(sendButton).toBeEnabled();
+  await sendButton.click();
+
+  const firstProductCard = page.locator(".product-card").first();
+  await expect(firstProductCard).toBeVisible();
+
+  const cardTitle = await firstProductCard.getByRole("heading").textContent();
+  const cardPrice = await firstProductCard
+    .locator(".product-card__price")
+    .textContent();
+  const href = await firstProductCard.getAttribute("href");
+
+  expect(href).toMatch(/^\/products\/\d+$/u);
+
+  const [detailPage] = await Promise.all([
+    page.context().waitForEvent("page"),
+    firstProductCard.click(),
+  ]);
+  await detailPage.waitForLoadState();
+
+  await expect(detailPage).toHaveURL(href ?? "");
+  await expect(
+    detailPage.getByRole("heading", { name: cardTitle ?? "" }),
+  ).toBeVisible();
+  await expect(
+    detailPage.getByText(cardPrice ?? "", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    detailPage.locator(".product-detail__description"),
+  ).toBeVisible();
+});
