@@ -19,11 +19,15 @@ export function ProductCard({ product }: ProductCardProperties) {
       <div className="product-card__content">
         <p className="product-card__category">{product.category}</p>
         <h3>{product.title}</h3>
-        <p>{product.shortDescription}</p>
-        <p className="product-card__price">${product.price.toFixed(2)}</p>
-        {product.rating !== null ? (
-          <p>Rating: {product.rating.toFixed(1)}</p>
-        ) : null}
+        <p className="product-card__description">{product.shortDescription}</p>
+        <div className="product-card__footer">
+          <p className="product-card__price">${product.price.toFixed(2)}</p>
+          {product.rating !== null ? (
+            <p className="product-card__rating">
+              ★ {product.rating.toFixed(1)}
+            </p>
+          ) : null}
+        </div>
       </div>
     </article>
   );

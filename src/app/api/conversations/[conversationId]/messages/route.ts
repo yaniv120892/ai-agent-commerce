@@ -8,6 +8,7 @@ import {
   jsonError,
   unexpectedServerError,
 } from "@/app/api/http-errors";
+import { MESSAGE_CONTENT_MAX_LENGTH } from "@/domain/conversations/constants";
 
 type RouteContext = {
   params: Promise<{ conversationId: string }>;
@@ -32,7 +33,7 @@ export async function POST(request: Request, context: RouteContext) {
   if (input === null) {
     return jsonError(
       "INVALID_MESSAGE",
-      "Message content must be between 1 and 2,000 characters.",
+      `Message content must be between 1 and ${MESSAGE_CONTENT_MAX_LENGTH.toLocaleString("en-US")} characters.`,
       422,
       requestId,
     );

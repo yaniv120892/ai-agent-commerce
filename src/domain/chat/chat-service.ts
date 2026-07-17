@@ -1,6 +1,7 @@
 import type { CatalogResolver } from "../catalog/catalog-resolver";
 import { CatalogError } from "../catalog/types";
 import type { ConversationRepository } from "../conversations/conversation-repository";
+import { MESSAGE_CONTENT_MAX_LENGTH } from "../conversations/constants";
 import type {
   AppendedAssistantReply,
   PersistedConversation,
@@ -57,7 +58,7 @@ export class ChatService {
     if (content === null) {
       return this.createErrorResponse(
         "INVALID_MESSAGE",
-        "Message content must be between 1 and 2,000 characters.",
+        `Message content must be between 1 and ${MESSAGE_CONTENT_MAX_LENGTH.toLocaleString("en-US")} characters.`,
         null,
         null,
       );
@@ -106,7 +107,7 @@ export class ChatService {
     if (content === null) {
       return this.createErrorResponse(
         "INVALID_MESSAGE",
-        "Message content must be between 1 and 2,000 characters.",
+        `Message content must be between 1 and ${MESSAGE_CONTENT_MAX_LENGTH.toLocaleString("en-US")} characters.`,
         input.conversationId,
         null,
       );
@@ -404,7 +405,10 @@ export class ChatService {
   private validateMessage(content: string): string | null {
     const trimmedContent = content.trim();
 
-    if (trimmedContent.length === 0 || trimmedContent.length > 2_000) {
+    if (
+      trimmedContent.length === 0 ||
+      trimmedContent.length > MESSAGE_CONTENT_MAX_LENGTH
+    ) {
       return null;
     }
 
