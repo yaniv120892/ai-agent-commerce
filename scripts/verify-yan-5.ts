@@ -45,7 +45,12 @@ async function main(): Promise<void> {
 
   const { OpenAIModelClient } =
     await import("../src/domain/chat/openai-model-client");
-  const modelClient = new OpenAIModelClient(apiKey);
+  const modelClient = new OpenAIModelClient({
+    apiKey,
+    maxOutputTokens: 2000,
+    maxRetries: 1,
+    timeoutMs: 20000,
+  });
   const catalogClient = new CatalogClient(fetch, "https://dummyjson.com", 5000);
   const catalogResolver = new CatalogResolver(
     catalogClient,
