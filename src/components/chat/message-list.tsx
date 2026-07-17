@@ -36,9 +36,6 @@ export function MessageList({ messages }: MessageListProperties) {
             {messageAvatarLabel(message.role)}
           </span>
           <article className={`message-bubble message-bubble--${message.role}`}>
-            <p className="message-bubble__role">
-              {message.role === "assistant" ? "Shopping assistant" : "You"}
-            </p>
             {message.status === "pending" ? (
               <p className="typing-indicator">
                 Finding products for you

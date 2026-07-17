@@ -230,7 +230,6 @@ button:disabled {
 }
 
 .chat-panel__eyebrow,
-.message-bubble__role,
 .product-card__category {
   color: var(--color-text-secondary);
   font-size: 0.8rem;
