@@ -34,20 +34,8 @@
         "reason": "Known-red against the real planner: with no pagination or exhaustion signal in the plan contract, a repeated 'do you have more?' turn re-runs the same smartphones retrieval rather than acknowledging there is nothing further to show (observed live: three identical result sets in a row). Quarantined pending a pagination/exhaustion feature; the scenario asserts the desired non-retrieval clarify so it flips green once that ships."
       },
       {
-        "scenario": "ordinal_detail",
-        "reason": "Product-reference capability gap: gpt-5.4-mini does not reliably resolve a positional reference ('the second one') to exactly one referencedProductId, so the resolver rejects the plan. The deterministic fake resolves it, so this passes offline; explicit prompt guidance to resolve positional references was tried and did not fix it reliably while it destabilized plain search plans, so it was removed. Quarantined pending planner-quality work on reference resolution."
-      },
-      {
-        "scenario": "compare",
-        "reason": "Product-reference capability gap: gpt-5.4-mini does not reliably resolve 'compare the first and second' to exactly two referencedProductIds, so the resolver rejects the plan. The deterministic fake resolves it, so this passes offline. Quarantined pending planner-quality work on reference resolution."
-      },
-      {
         "scenario": "compare_requires_two_priors",
         "reason": "Product-reference capability gap: with only one prior product, gpt-5.4-mini attempts a comparison (or emits catalog constraints on a non-retrieval plan) instead of cleanly clarifying, so the resolver rejects the plan. The deterministic fake returns a clean clarify, so this passes offline. Quarantined pending planner-quality work on reference resolution."
-      },
-      {
-        "scenario": "compare_duplicate_product_id",
-        "reason": "Repair-quality gap, not a validator defect: asked to 'compare the first phone with itself' with only one prior product shown, gpt-5.4-mini returns a clarify intent but omits assistantMessage, which PlanValidator correctly rejects ('Non-retrieval plans require an assistantMessage'); the one-shot repair does not add it. The deterministic fake always fills assistantMessage on non-retrieval plans, so this passes offline. Quarantined pending planner-quality work on repair reliability for this phrasing."
       },
       {
         "scenario": "compare_three_products",
