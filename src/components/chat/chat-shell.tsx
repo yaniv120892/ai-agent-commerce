@@ -666,7 +666,9 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
           className={`chat-status${state.status === "error" ? " chat-status--error" : ""}`}
           role="status"
         >
-          {state.status === "sending" ? "Finding a response…" : null}
+          {state.status === "sending" ? (
+            <span className="sr-only">Finding a response…</span>
+          ) : null}
           {state.status === "error" ? state.error.message : null}
           {state.status === "unknownConversation"
             ? "This conversation is no longer available."
