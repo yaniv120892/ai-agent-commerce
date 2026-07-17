@@ -35,11 +35,13 @@ export type EvaluationCaseResult = {
   constraintChecks: Record<string, boolean>;
   expectedIntent: RetrievalIntent;
   failures: string[];
+  firstPassPlanValid: boolean;
   groundedCards: boolean;
   intentMatches: boolean;
   latencyMs: number;
   name: string;
   planValid: boolean;
+  repairAttempted: boolean;
   selectedProductIds: number[];
 };
 
@@ -48,7 +50,9 @@ export type EvaluationReport = {
   results: EvaluationCaseResult[];
   summary: {
     failed: number;
+    firstPassPlanValid: number;
     passed: number;
+    repairAttempted: number;
     total: number;
   };
 };

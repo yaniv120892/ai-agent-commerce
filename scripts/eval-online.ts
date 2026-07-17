@@ -7,8 +7,9 @@ import { performance } from "node:perf_hooks";
 import { deriveActiveContext } from "../src/domain/chat/active-context";
 import { CatalogClient } from "../src/domain/catalog/catalog-client";
 import { CatalogResolver } from "../src/domain/catalog/catalog-resolver";
+import { PlanValidator } from "../src/domain/catalog/plan-validator";
+import { PlanRepairService } from "../src/domain/chat/plan-repair-service";
 import type { RetrievalIntent } from "../src/domain/catalog/types";
-import type { ModelClient } from "../src/domain/chat/types";
 import { getFixtureProduct } from "../src/domain/testing/deterministic-clients";
 import {
   checkConstraints,
@@ -40,7 +41,7 @@ const nonFatalConstraintsByIntent: Partial<Record<RetrievalIntent, string[]>> =
 
 async function evaluateScenario(
   scenario: Scenario,
-  modelClient: ModelClient,
+  planRepairService: PlanRepairService,
   catalogResolver: CatalogResolver,
   allowedCategorySlugs: string[],
 ): Promise<EvaluationCaseResult> {
@@ -52,16 +53,23 @@ async function evaluateScenario(
   let constraintChecks: Record<string, boolean> = {};
   let selectedProductIds: number[] = [];
   let planValid = false;
+  let firstPassPlanValid = false;
+  let repairAttempted = false;
 
   try {
-    const plan = await modelClient.createRetrievalPlan({
+    const planOutcome = await planRepairService.createValidPlan({
       activeContext: deriveActiveContext(history),
       allowedCategorySlugs,
       history,
       priorProductIds,
       userMessage: scenario.currentInput,
     });
-    const resolved = await catalogResolver.resolve(plan, priorProductIds);
+    const plan = planOutcome.plan;
+
+    firstPassPlanValid = planOutcome.firstPassValid;
+    repairAttempted = planOutcome.repairAttempted;
+
+    const resolved = await catalogResolver.resolve(plan);
     const ignoredConstraints = new Set(
       nonFatalConstraintsByIntent[plan.intent] ?? [],
     );
@@ -109,11 +117,13 @@ async function evaluateScenario(
     constraintChecks,
     expectedIntent: scenario.expectedIntent,
     failures,
+    firstPassPlanValid,
     groundedCards: selectedProductIds.every((productId) => productId > 0),
     intentMatches: actualIntent === scenario.expectedIntent,
     latencyMs: Math.round((performance.now() - startedAt) * 100) / 100,
     name: scenario.name,
     planValid,
+    repairAttempted,
     selectedProductIds,
   };
 }
@@ -165,12 +175,16 @@ async function main(): Promise<void> {
     models,
     timeoutMs: 20000,
   });
+  const planRepairService = new PlanRepairService(
+    modelClient,
+    (categorySlugs) => new PlanValidator(categorySlugs),
+  );
   const results: EvaluationCaseResult[] = [];
 
   for (const scenario of scenarios) {
     const result = await evaluateScenario(
       scenario,
-      modelClient,
+      planRepairService,
       catalogResolver,
       allowedCategorySlugs,
     );
@@ -183,6 +197,10 @@ async function main(): Promise<void> {
     generatedAt: new Date().toISOString(),
     results,
     summary: {
+      firstPassPlanValid: results.filter((result) => result.firstPassPlanValid)
+        .length,
+      repairAttempted: results.filter((result) => result.repairAttempted)
+        .length,
       failed: results.filter((result) => result.failures.length > 0).length,
       passed: results.filter((result) => result.failures.length === 0).length,
       total: results.length,
