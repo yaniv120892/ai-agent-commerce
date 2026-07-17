@@ -49,8 +49,8 @@ describe("conversation routes", () => {
   const modelClient: ModelClient = {
     createConversationTitle: vi
       .fn()
-      .mockImplementation(async (input: { userMessage: string }) =>
-        input.userMessage,
+      .mockImplementation(
+        async (input: { userMessage: string }) => input.userMessage,
       ),
     createGroundedReply: vi.fn().mockResolvedValue("Phone Ultra is a match."),
     createRetrievalPlan: vi.fn().mockResolvedValue(retrievalPlan),
