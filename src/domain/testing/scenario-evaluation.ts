@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { z } from "zod";
 
 import type { CatalogProduct } from "@/domain/catalog/types";
-import { retrievalIntents } from "@/domain/catalog/types";
+import { catalogSorts, retrievalIntents } from "@/domain/catalog/types";
 import type {
   PersistedMessage,
   ProductCardSnapshot,
@@ -43,10 +43,13 @@ const scenarioMessageSchema = z
 
 const scenarioRequiredConstraintsSchema = z
   .object({
+    categorySlug: z.string().min(1).optional(),
+    inStock: z.boolean().optional(),
     maxPrice: z.number().finite().nonnegative().optional(),
     referencedProductIds: z.array(z.number().int().positive()).optional(),
     searchTerm: z.string().min(1).optional(),
     selectedProductIds: z.array(z.number().int().positive()).optional(),
+    sort: z.enum(catalogSorts).optional(),
   })
   .strict();
 
@@ -144,6 +147,19 @@ export function checkConstraints(
       selectedProductIds,
       scenario.requiredConstraints.selectedProductIds,
     );
+  }
+
+  if (scenario.requiredConstraints.categorySlug !== undefined) {
+    checks.categorySlug =
+      plan.categorySlug === scenario.requiredConstraints.categorySlug;
+  }
+
+  if (scenario.requiredConstraints.inStock !== undefined) {
+    checks.inStock = plan.inStock === scenario.requiredConstraints.inStock;
+  }
+
+  if (scenario.requiredConstraints.sort !== undefined) {
+    checks.sort = plan.sort === scenario.requiredConstraints.sort;
   }
 
   return checks;
