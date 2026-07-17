@@ -1,5 +1,6 @@
 import type { CatalogResolver } from "../catalog/catalog-resolver";
 import { CatalogError } from "../catalog/types";
+import type { PlanRepairService } from "./plan-repair-service";
 import type { ConversationRepository } from "../conversations/conversation-repository";
 import {
   CONVERSATION_TITLE_MAX_LENGTH,
@@ -20,7 +21,7 @@ import {
   type ChatErrorCode,
   type ChatResponse,
   type ModelClient,
-  type RetrievalPlan,
+  type PlanAttemptOutcome,
   type StartConversationInput,
 } from "./types";
 import { deriveActiveContext } from "./active-context";
@@ -42,6 +43,8 @@ type CatalogResolution = Pick<
   CatalogResolver,
   "listAllowedCategorySlugs" | "resolve"
 >;
+
+type PlanCreation = Pick<PlanRepairService, "createValidPlan">;
 
 type MessageContext = {
   history: PersistedMessage[];
@@ -77,6 +80,7 @@ export class ChatService {
     private readonly conversationRepository: ConversationStore,
     private readonly catalogResolver: CatalogResolution,
     private readonly modelClient: ModelClient,
+    private readonly planRepairService: PlanCreation,
     private readonly replyCompletionCache = new ReplyCompletionCache(),
   ) {}
 
@@ -240,10 +244,10 @@ export class ChatService {
       );
     }
 
-    let plan: RetrievalPlan;
+    let planOutcome: PlanAttemptOutcome;
 
     try {
-      plan = await this.modelClient.createRetrievalPlan({
+      planOutcome = await this.planRepairService.createValidPlan({
         activeContext: messageContext.activeContext,
         allowedCategorySlugs,
         history: messageContext.history,
@@ -251,6 +255,18 @@ export class ChatService {
         userMessage,
       });
     } catch (error) {
+      if (
+        error instanceof CatalogError &&
+        error.code === "INVALID_RETRIEVAL_PLAN"
+      ) {
+        return this.failAssistantMessage(
+          "INVALID_RETRIEVAL_PLAN",
+          INVALID_RETRIEVAL_PLAN_MESSAGE,
+          conversationId,
+          assistantMessage,
+        );
+      }
+
       return this.failFromModelError(
         error,
         requestId,
@@ -258,6 +274,10 @@ export class ChatService {
         assistantMessage,
       );
     }
+
+    this.logPlanValidation(planOutcome);
+
+    const plan = planOutcome.plan;
 
     if (plan.intent === "clarify" || plan.intent === "unsupported") {
       if (plan.assistantMessage === null) {
@@ -280,10 +300,7 @@ export class ChatService {
     let productCards: ProductCardSnapshot[];
 
     try {
-      const result = await this.catalogResolver.resolve(
-        plan,
-        messageContext.priorProductIds,
-      );
+      const result = await this.catalogResolver.resolve(plan);
       productCards = result.productCards;
     } catch (error) {
       if (
@@ -518,6 +535,16 @@ export class ChatService {
 
   private createConversationTitle(content: string): string {
     return content.slice(0, CONVERSATION_TITLE_MAX_LENGTH);
+  }
+
+  private logPlanValidation(planOutcome: PlanAttemptOutcome): void {
+    console.info(
+      JSON.stringify({
+        event: "plan_validation",
+        firstPassValid: planOutcome.firstPassValid,
+        repairAttempted: planOutcome.repairAttempted,
+      }),
+    );
   }
 
   private createErrorResponse(
