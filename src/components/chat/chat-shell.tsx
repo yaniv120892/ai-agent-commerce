@@ -610,11 +610,15 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
       />
       <section className="chat-panel">
         <header className="chat-panel__header">
-          <p>AI Commerce Copilot</p>
+          <p className="chat-panel__eyebrow">AI Commerce Copilot</p>
           <h1>{state.conversation?.title ?? "New conversation"}</h1>
         </header>
         <MessageList messages={state.conversation?.messages ?? []} />
-        <div aria-live="polite" className="chat-status" role="status">
+        <div
+          aria-live="polite"
+          className={`chat-status${state.status === "error" ? " chat-status--error" : ""}`}
+          role="status"
+        >
           {state.status === "sending" ? "Finding a response…" : null}
           {state.status === "error" ? state.error.message : null}
           {state.status === "unknownConversation"
