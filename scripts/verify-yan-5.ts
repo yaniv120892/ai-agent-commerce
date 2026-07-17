@@ -4,6 +4,7 @@ import { deriveActiveContext } from "../src/domain/chat/active-context";
 import { CatalogClient } from "../src/domain/catalog/catalog-client";
 import { CatalogResolver } from "../src/domain/catalog/catalog-resolver";
 import type { PersistedMessage } from "../src/domain/conversations/types";
+import { resolveOpenAIModelSelection } from "../src/lib/openai-model-config";
 
 const allowedCategorySlugs = [
   "beauty",
@@ -49,6 +50,7 @@ async function main(): Promise<void> {
     apiKey,
     maxOutputTokens: 2000,
     maxRetries: 1,
+    models: resolveOpenAIModelSelection(process.env),
     timeoutMs: 20000,
   });
   const catalogClient = new CatalogClient(fetch, "https://dummyjson.com", 5000);

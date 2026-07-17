@@ -22,6 +22,7 @@ import type {
   EvaluationReport,
   Scenario,
 } from "../src/domain/testing/scenario-evaluation";
+import { resolveOpenAIModelSelection } from "../src/lib/openai-model-config";
 
 const allowedCategorySlugs = ["laptops", "smartphones", "tablets"];
 const artifactsDirectory = resolve(process.cwd(), "artifacts/evaluations");
@@ -155,10 +156,15 @@ async function main(): Promise<void> {
   );
   const { OpenAIModelClient } =
     await import("../src/domain/chat/openai-model-client");
+  const models = resolveOpenAIModelSelection(process.env);
+  console.log(
+    `Evaluating with planner model ${models.plannerModel} and reply model ${models.replyModel}`,
+  );
   const modelClient = new OpenAIModelClient({
     apiKey,
     maxOutputTokens: 2000,
     maxRetries: 1,
+    models,
     timeoutMs: 20000,
   });
   const results: EvaluationCaseResult[] = [];
