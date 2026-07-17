@@ -1,4 +1,8 @@
-import type { ChatError, ChatResponse } from "@/domain/chat/types";
+import type {
+  ChatError,
+  ChatErrorCode,
+  ChatResponse,
+} from "@/domain/chat/types";
 import type {
   ConversationSummary,
   PersistedConversation,
@@ -8,6 +12,7 @@ import type {
 
 export type {
   ChatError,
+  ChatErrorCode,
   ChatResponse,
   ConversationSummary,
   PersistedConversation,

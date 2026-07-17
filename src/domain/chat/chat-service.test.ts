@@ -2,7 +2,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import type { RetrievalPlan } from "@/domain/catalog/types";
+import { CatalogError, type RetrievalPlan } from "@/domain/catalog/types";
 import { CONVERSATION_TITLE_MAX_LENGTH } from "@/domain/conversations/constants";
 import type {
   PersistedConversation,
@@ -12,7 +12,7 @@ import type {
 
 import { ChatService } from "./chat-service";
 import { createOpenAIClient, OpenAIModelClient } from "./openai-model-client";
-import type { ModelClient } from "./types";
+import { ModelError, type ChatErrorCode, type ModelClient } from "./types";
 
 const productCards: ProductCardSnapshot[] = [
   {
@@ -125,6 +125,7 @@ describe("ChatService", () => {
 
     const response = await service.startConversation({
       clientRequestId: "request-id",
+      requestId: "request-id",
       content: "  Find me a phone  ",
     });
 
@@ -178,6 +179,7 @@ describe("ChatService", () => {
 
     await service.startConversation({
       clientRequestId: "request-id",
+      requestId: "request-id",
       content,
     });
 
@@ -205,6 +207,7 @@ describe("ChatService", () => {
 
     const response = await service.startConversation({
       clientRequestId: "request-id",
+      requestId: "request-id",
       content: "  Find me a phone  ",
     });
 
@@ -241,6 +244,7 @@ describe("ChatService", () => {
 
     const response = await service.startConversation({
       clientRequestId: "request-id",
+      requestId: "request-id",
       content: "Book me a flight",
     });
 
@@ -272,6 +276,7 @@ describe("ChatService", () => {
 
     const response = await service.startConversation({
       clientRequestId: "request-id",
+      requestId: "request-id",
       content: "Find me a phone",
     });
 
@@ -310,6 +315,7 @@ describe("ChatService", () => {
 
     await service.appendMessage({
       clientRequestId: "request-id",
+      requestId: "request-id",
       content: "Show me another",
       conversationId: "conversation-id",
     });
@@ -349,6 +355,7 @@ describe("ChatService", () => {
 
     await service.appendMessage({
       clientRequestId: "request-id",
+      requestId: "request-id",
       content: "I want the red one",
       conversationId: "conversation-id",
     });
@@ -386,6 +393,7 @@ describe("ChatService", () => {
 
     await service.appendMessage({
       clientRequestId: "request-id",
+      requestId: "request-id",
       content: "I want the cheaper one",
       conversationId: "conversation-id",
     });
@@ -422,6 +430,7 @@ describe("ChatService", () => {
 
     const response = await service.appendMessage({
       clientRequestId: "request-id",
+      requestId: "request-id",
       content: "Find me a phone",
       conversationId: "conversation-id",
     });
@@ -458,6 +467,7 @@ describe("ChatService", () => {
 
     const response = await service.appendMessage({
       clientRequestId: "request-id",
+      requestId: "request-id",
       content: "Find me a phone",
       conversationId: "conversation-id",
     });
@@ -492,6 +502,7 @@ describe("ChatService", () => {
 
     const response = await service.appendMessage({
       clientRequestId: "request-id",
+      requestId: "request-id",
       content: "Find me a phone",
       conversationId: "conversation-id",
     });
@@ -535,6 +546,7 @@ describe("ChatService", () => {
     );
     const input = {
       clientRequestId: "request-id",
+      requestId: "request-id",
       content: "Find me a phone",
       conversationId: "conversation-id",
     };
@@ -585,6 +597,7 @@ describe("ChatService", () => {
 
     await service.appendMessage({
       clientRequestId: "request-id",
+      requestId: "request-id",
       content: "Changed retry body",
       conversationId: "conversation-id",
     });
@@ -609,6 +622,7 @@ describe("ChatService", () => {
 
     const response = await service.startConversation({
       clientRequestId: "request-id",
+      requestId: "request-id",
       content: "   ",
     });
 
@@ -620,6 +634,184 @@ describe("ChatService", () => {
       conversationRepository.createConversationWithPendingReply,
     ).not.toHaveBeenCalled();
     expect(modelClient.createRetrievalPlan).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["AUTH_FAILED", "MODEL_AUTH_FAILED", false],
+    ["RATE_LIMITED", "MODEL_RATE_LIMITED", true],
+    ["REFUSED", "MODEL_REFUSED", false],
+    ["TIMEOUT", "MODEL_TIMEOUT", true],
+    ["UNAVAILABLE", "MODEL_UNAVAILABLE", true],
+  ] as const)(
+    "maps a planner ModelError(%s) to %s with retryable=%s",
+    async (modelErrorCode, chatErrorCode, retryable) => {
+      const { catalogResolver, conversationRepository, modelClient } =
+        createDependencies();
+      vi.mocked(modelClient.createRetrievalPlan).mockRejectedValue(
+        new ModelError(modelErrorCode, "planner failed"),
+      );
+      const service = new ChatService(
+        conversationRepository,
+        catalogResolver,
+        modelClient,
+        ["smartphones"],
+      );
+
+      const response = await service.startConversation({
+        clientRequestId: "request-id",
+        content: "Find me a phone",
+        requestId: "request-id",
+      });
+
+      expect(response).toMatchObject({
+        error: { code: chatErrorCode, retryable },
+        status: "error",
+      });
+      expect(catalogResolver.resolve).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["AUTH_FAILED", "MODEL_AUTH_FAILED", false],
+    ["RATE_LIMITED", "MODEL_RATE_LIMITED", true],
+    ["REFUSED", "MODEL_REFUSED", false],
+    ["TIMEOUT", "MODEL_TIMEOUT", true],
+    ["UNAVAILABLE", "MODEL_UNAVAILABLE", true],
+  ] as const)(
+    "maps a grounded-reply ModelError(%s) to %s with retryable=%s",
+    async (modelErrorCode, chatErrorCode, retryable) => {
+      const { catalogResolver, conversationRepository, modelClient } =
+        createDependencies();
+      vi.mocked(modelClient.createGroundedReply).mockRejectedValue(
+        new ModelError(modelErrorCode, "reply failed"),
+      );
+      const service = new ChatService(
+        conversationRepository,
+        catalogResolver,
+        modelClient,
+        ["smartphones"],
+      );
+
+      const response = await service.startConversation({
+        clientRequestId: "request-id",
+        content: "Find me a phone",
+        requestId: "request-id",
+      });
+
+      expect(response).toMatchObject({
+        error: { code: chatErrorCode, retryable },
+        status: "error",
+      });
+      expect(conversationRepository.failAssistantMessage).toHaveBeenCalledWith({
+        conversationId: "conversation-id",
+        messageId: "assistant-message-id",
+      });
+    },
+  );
+
+  it("treats an unrecognized model throw as non-retryable-unavailable", async () => {
+    const { catalogResolver, conversationRepository, modelClient } =
+      createDependencies();
+    vi.mocked(modelClient.createRetrievalPlan).mockRejectedValue(
+      new Error("something the client didn't classify"),
+    );
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      ["smartphones"],
+    );
+
+    const response = await service.startConversation({
+      clientRequestId: "request-id",
+      content: "Find me a phone",
+      requestId: "request-id",
+    });
+
+    expect(response).toMatchObject({
+      error: { code: "MODEL_UNAVAILABLE", retryable: true },
+      status: "error",
+    });
+  });
+
+  it("marks INVALID_RETRIEVAL_PLAN non-retryable with an honest catalog-lookup message", async () => {
+    const { catalogResolver, conversationRepository, modelClient } =
+      createDependencies();
+    catalogResolver.resolve.mockRejectedValue(
+      new CatalogError("INVALID_RETRIEVAL_PLAN", "plan referenced unknown ids"),
+    );
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      ["smartphones"],
+    );
+
+    const response = await service.startConversation({
+      clientRequestId: "request-id",
+      content: "Find me a phone",
+      requestId: "request-id",
+    });
+
+    expect(response).toMatchObject({
+      error: {
+        code: "INVALID_RETRIEVAL_PLAN",
+        message: expect.stringContaining("valid catalog lookup"),
+        retryable: false,
+      },
+      status: "error",
+    });
+  });
+
+  it("maps a CatalogError(INVALID_RETRIEVAL_PLAN) to the identically named chat code rather than degrading to CATALOG_UNAVAILABLE", async () => {
+    const { catalogResolver, conversationRepository, modelClient } =
+      createDependencies();
+    catalogResolver.resolve.mockRejectedValue(
+      new CatalogError("INVALID_RETRIEVAL_PLAN", "plan referenced unknown ids"),
+    );
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      ["smartphones"],
+    );
+
+    const response = await service.startConversation({
+      clientRequestId: "request-id",
+      content: "Find me a phone",
+      requestId: "request-id",
+    });
+
+    const errorCode: ChatErrorCode =
+      response.status === "error" ? response.error.code : "MODEL_UNAVAILABLE";
+
+    expect(errorCode).toBe("INVALID_RETRIEVAL_PLAN");
+    expect(errorCode).not.toBe("CATALOG_UNAVAILABLE");
+  });
+
+  it("still falls back to a CATALOG_UNAVAILABLE code for any other catalog failure", async () => {
+    const { catalogResolver, conversationRepository, modelClient } =
+      createDependencies();
+    catalogResolver.resolve.mockRejectedValue(
+      new CatalogError("UPSTREAM_UNAVAILABLE", "DummyJSON is down"),
+    );
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      ["smartphones"],
+    );
+
+    const response = await service.startConversation({
+      clientRequestId: "request-id",
+      content: "Find me a phone",
+      requestId: "request-id",
+    });
+
+    expect(response).toMatchObject({
+      error: { code: "CATALOG_UNAVAILABLE", retryable: true },
+      status: "error",
+    });
   });
 });
 
