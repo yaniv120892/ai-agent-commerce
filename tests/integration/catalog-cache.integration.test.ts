@@ -4,6 +4,14 @@ import { CachingCatalogClient } from "@/domain/catalog/caching-catalog-client";
 import type { CatalogClientContract } from "@/domain/catalog/types";
 import { redisClient } from "@/lib/redis/redis-client";
 
+if (redisClient === null) {
+  throw new Error(
+    "REDIS_URL must be set to run the catalog cache integration tests; the catalog cache is disabled without it",
+  );
+}
+
+const redis = redisClient;
+
 const sampleProduct = {
   id: 1,
   title: "Phone Ultra",
@@ -31,7 +39,7 @@ function createWrappedClient(): CatalogClientContract {
 
 describe("CachingCatalogClient against a real Redis", () => {
   afterEach(async () => {
-    await redisClient.del(
+    await redis.del(
       "catalog:v1:search:phone",
       "catalog:v1:category:smartphones",
       "catalog:v1:list:all",
@@ -42,17 +50,13 @@ describe("CachingCatalogClient against a real Redis", () => {
 
   it("persists a cached response in Redis across client instances", async () => {
     const wrapped = createWrappedClient();
-    const firstClient = new CachingCatalogClient(
-      wrapped,
-      redisClient,
-      ttlConfig,
-    );
+    const firstClient = new CachingCatalogClient(wrapped, redis, ttlConfig);
 
     await firstClient.searchProducts("phone");
 
     const secondClient = new CachingCatalogClient(
       createWrappedClient(),
-      redisClient,
+      redis,
       ttlConfig,
     );
     const result = await secondClient.searchProducts("phone");
@@ -64,13 +68,13 @@ describe("CachingCatalogClient against a real Redis", () => {
   it("stores each endpoint under its expected TTL bucket", async () => {
     const client = new CachingCatalogClient(
       createWrappedClient(),
-      redisClient,
+      redis,
       ttlConfig,
     );
 
     await client.getProduct(1);
 
-    const ttl = await redisClient.ttl("catalog:v1:product:1");
+    const ttl = await redis.ttl("catalog:v1:product:1");
 
     expect(ttl).toBeGreaterThan(0);
     expect(ttl).toBeLessThanOrEqual(ttlConfig.detailTtlSeconds);

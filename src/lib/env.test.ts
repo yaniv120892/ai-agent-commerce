@@ -41,19 +41,31 @@ it("rejects an invalid REDIS_URL", () => {
   ).toThrow("REDIS_URL");
 });
 
-it("applies default REDIS_URL and catalog cache TTLs when unset", () => {
+it("leaves REDIS_URL undefined and applies default catalog cache TTLs when unset", () => {
   const parsedEnvironment = createEnvironment({
     DATABASE_URL: "postgresql://localhost/ai_commerce",
     OPENAI_API_KEY: "test-key",
   }) as {
-    redisUrl: string;
+    redisUrl: string | undefined;
     catalogCacheListTtlSeconds: number;
     catalogCacheDetailTtlSeconds: number;
   };
 
-  expect(parsedEnvironment.redisUrl).toBe("redis://localhost:6379");
+  expect(parsedEnvironment.redisUrl).toBeUndefined();
   expect(parsedEnvironment.catalogCacheListTtlSeconds).toBe(300);
   expect(parsedEnvironment.catalogCacheDetailTtlSeconds).toBe(1800);
+});
+
+it("keeps an explicit REDIS_URL", () => {
+  const parsedEnvironment = createEnvironment({
+    DATABASE_URL: "postgresql://localhost/ai_commerce",
+    OPENAI_API_KEY: "test-key",
+    REDIS_URL: "rediss://default:token@example.upstash.io:6379",
+  }) as { redisUrl: string | undefined };
+
+  expect(parsedEnvironment.redisUrl).toBe(
+    "rediss://default:token@example.upstash.io:6379",
+  );
 });
 
 it("rejects E2E mode outside development", () => {

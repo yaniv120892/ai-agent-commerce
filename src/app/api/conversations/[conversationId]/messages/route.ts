@@ -14,6 +14,10 @@ type RouteContext = {
   params: Promise<{ conversationId: string }>;
 };
 
+// Replying chains two sequential model calls (retrieval plan, grounded reply)
+// plus catalog HTTP, which exceeds the platform default.
+export const maxDuration = 60;
+
 export async function POST(request: Request, context: RouteContext) {
   const requestId = crypto.randomUUID();
   const { conversationId: rawConversationId } = await context.params;

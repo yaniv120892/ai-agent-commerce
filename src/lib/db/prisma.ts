@@ -8,8 +8,13 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+// Each serverless instance gets its own pool, so the cap is per-instance and
+// multiplies by concurrency against the database's connection limit.
+const CONNECTIONS_PER_INSTANCE = 3;
+
 const prismaAdapter = new PrismaPg({
   connectionString: environment.databaseUrl,
+  max: CONNECTIONS_PER_INSTANCE,
 });
 
 export const prisma =

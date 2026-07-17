@@ -12,7 +12,7 @@ const environmentSchema = z.object({
     .default("https://dummyjson.com"),
   DUMMYJSON_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
   E2E_MODE: z.enum(["true", "false"]).default("false"),
-  REDIS_URL: z.url().default("redis://localhost:6379"),
+  REDIS_URL: z.url().optional(),
   CATALOG_CACHE_LIST_TTL_SECONDS: z.coerce
     .number()
     .int()
