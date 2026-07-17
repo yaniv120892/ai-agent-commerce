@@ -4,15 +4,59 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 
-const DEFAULT_DATABASE_PORT = 5432;
-const PORT_RANGE_START = 5433;
-const PORT_RANGE_END = 5533;
-const PORT_RANGE_SIZE = PORT_RANGE_END - PORT_RANGE_START + 1;
-
 interface WorktreeDescriptor {
   path: string;
   isMain: boolean;
 }
+
+interface EnvVarPortBinding {
+  name: string;
+  format: "url" | "bare";
+}
+
+interface ServicePortSpec {
+  id: string;
+  defaultPort: number;
+  rangeStart: number;
+  rangeEnd: number;
+  envVars: EnvVarPortBinding[];
+  composeContainerPort: number | null;
+}
+
+interface ServicePortAssignment {
+  spec: ServicePortSpec;
+  port: number;
+}
+
+const SERVICE_PORT_SPECS: ServicePortSpec[] = [
+  {
+    id: "postgres",
+    defaultPort: 5432,
+    rangeStart: 5433,
+    rangeEnd: 5533,
+    envVars: [
+      { name: "DATABASE_URL", format: "url" },
+      { name: "TEST_DATABASE_URL", format: "url" },
+    ],
+    composeContainerPort: 5432,
+  },
+  {
+    id: "redis",
+    defaultPort: 6379,
+    rangeStart: 6380,
+    rangeEnd: 6480,
+    envVars: [{ name: "REDIS_URL", format: "url" }],
+    composeContainerPort: 6379,
+  },
+  {
+    id: "api",
+    defaultPort: 3000,
+    rangeStart: 3001,
+    rangeEnd: 3101,
+    envVars: [{ name: "PORT", format: "bare" }],
+    composeContainerPort: null,
+  },
+];
 
 async function main(): Promise<void> {
   const currentWorktreePath = getGitToplevel(process.cwd());
@@ -27,7 +71,7 @@ async function main(): Promise<void> {
 
   if (currentWorktreePath === mainWorktree.path) {
     console.log(
-      `${currentWorktreePath} is the main checkout, not a linked worktree. It keeps port ${DEFAULT_DATABASE_PORT} and is left untouched.`,
+      `${currentWorktreePath} is the main checkout, not a linked worktree. It keeps every service's default port and is left untouched.`,
     );
     return;
   }
@@ -41,29 +85,50 @@ async function main(): Promise<void> {
     ? await readFile(composePath, "utf8")
     : null;
 
-  const alreadyAssignedPort = getConsistentAssignedPort(
-    existingEnvContent,
-    existingComposeContent,
-  );
+  if (existingComposeContent === null) {
+    throw new Error(
+      `${composePath} does not exist. compose.yaml is a tracked file, so every worktree should already have a copy from 'git worktree add'; something is wrong with this checkout.`,
+    );
+  }
 
-  const port =
-    alreadyAssignedPort ??
-    (await allocatePort(
-      currentWorktreePath,
-      collectReservedPorts(worktrees, currentWorktreePath),
-    ));
+  const seededFromMain = existingEnvContent === null;
+  let envContent =
+    existingEnvContent ?? (await seedEnvContent(mainWorktree.path));
+  let composeContent = existingComposeContent;
+  const assignments: ServicePortAssignment[] = [];
 
-  await writeEnvFile(
-    currentWorktreePath,
-    mainWorktree.path,
-    existingEnvContent,
-    port,
-  );
-  await writeComposeFile(currentWorktreePath, existingComposeContent, port);
+  for (const spec of SERVICE_PORT_SPECS) {
+    if (!isServiceActive(spec, existingComposeContent)) {
+      continue;
+    }
 
-  console.log(
-    `Worktree ${currentWorktreePath} is configured with Postgres host port ${port}.`,
-  );
+    const port =
+      getConsistentAssignedPort(
+        spec,
+        existingEnvContent,
+        existingComposeContent,
+      ) ??
+      (await allocatePort(
+        spec,
+        currentWorktreePath,
+        collectReservedPorts(spec, worktrees, currentWorktreePath),
+      ));
+
+    envContent = applyPortToEnvContent(envContent, spec, port);
+    composeContent = applyPortToComposeContent(composeContent, spec, port);
+    assignments.push({ spec, port });
+  }
+
+  await writeFile(envPath, envContent);
+  await writeFile(composePath, composeContent);
+
+  if (seededFromMain) {
+    console.log(`  seeded .env from ${mainWorktree.path}`);
+  }
+  console.log(`Worktree ${currentWorktreePath} is configured with:`);
+  for (const { spec, port } of assignments) {
+    console.log(`  ${spec.id}: port ${port}`);
+  }
   console.log(`  .env: ${envPath}`);
   console.log(`  compose.yaml: ${composePath}`);
 }
@@ -99,23 +164,59 @@ function listWorktrees(): WorktreeDescriptor[] {
   return descriptors;
 }
 
+/**
+ * A service is only ever port-managed here if it's actually present:
+ * compose-backed services (postgres, redis) are active only once their
+ * block exists in this worktree's own compose.yaml, so redis stays a no-op
+ * until a future branch (e.g. YAN-12) adds it. The api dev server has no
+ * compose entry and is always active, since `npm run dev` applies to every
+ * worktree regardless of Docker services.
+ */
+function isServiceActive(
+  spec: ServicePortSpec,
+  composeContent: string,
+): boolean {
+  if (spec.composeContainerPort === null) {
+    return true;
+  }
+  return extractComposePort(composeContent, spec.composeContainerPort) !== null;
+}
+
 function collectReservedPorts(
+  spec: ServicePortSpec,
   worktrees: WorktreeDescriptor[],
   currentWorktreePath: string,
 ): Set<number> {
-  const reservedPorts = new Set<number>([DEFAULT_DATABASE_PORT]);
+  const reservedPorts = new Set<number>([spec.defaultPort]);
 
   for (const worktree of worktrees) {
     if (worktree.path === currentWorktreePath) {
       continue;
     }
 
-    const composePath = join(worktree.path, "compose.yaml");
-    if (!existsSync(composePath)) {
+    if (spec.composeContainerPort !== null) {
+      const composePath = join(worktree.path, "compose.yaml");
+      if (!existsSync(composePath)) {
+        continue;
+      }
+      const port = extractComposePort(
+        readFileSync(composePath, "utf8"),
+        spec.composeContainerPort,
+      );
+      if (port !== null) {
+        reservedPorts.add(port);
+      }
       continue;
     }
 
-    const port = extractComposePort(readFileSync(composePath, "utf8"));
+    const envPath = join(worktree.path, ".env");
+    if (!existsSync(envPath)) {
+      continue;
+    }
+    const port = extractEnvVarPort(
+      readFileSync(envPath, "utf8"),
+      spec.envVars[0],
+    );
     if (port !== null) {
       reservedPorts.add(port);
     }
@@ -124,48 +225,88 @@ function collectReservedPorts(
   return reservedPorts;
 }
 
+/**
+ * Reuses the currently assigned port only when every one of the service's
+ * env vars and (if compose-backed) its compose.yaml mapping already agree
+ * on the same non-default port. Any drift (a hand edit, a partially applied
+ * previous run) is treated as "not consistent" and forces a fresh
+ * allocation rather than trusting stale state.
+ */
 function getConsistentAssignedPort(
-  envContent: string | null,
-  composeContent: string | null,
+  spec: ServicePortSpec,
+  existingEnvContent: string | null,
+  existingComposeContent: string,
 ): number | null {
-  if (envContent === null || composeContent === null) {
+  if (existingEnvContent === null) {
     return null;
   }
 
-  const envPort = extractEnvPort(envContent);
-  const composePort = extractComposePort(composeContent);
+  const envPort = extractEnvPort(existingEnvContent, spec);
+  if (envPort === null || envPort === spec.defaultPort) {
+    return null;
+  }
 
-  if (
-    envPort !== null &&
-    composePort !== null &&
-    envPort === composePort &&
-    envPort !== DEFAULT_DATABASE_PORT
-  ) {
+  if (spec.composeContainerPort === null) {
     return envPort;
   }
 
-  return null;
+  const composePort = extractComposePort(
+    existingComposeContent,
+    spec.composeContainerPort,
+  );
+  return composePort === envPort ? envPort : null;
 }
 
-function extractEnvPort(envContent: string): number | null {
-  const match = envContent.match(/DATABASE_URL=.*?localhost:(\d+)/);
+function extractEnvPort(
+  envContent: string,
+  spec: ServicePortSpec,
+): number | null {
+  const ports = spec.envVars
+    .map((binding) => extractEnvVarPort(envContent, binding))
+    .filter((port): port is number => port !== null);
+
+  if (ports.length === 0) {
+    return null;
+  }
+
+  const [firstPort, ...restPorts] = ports;
+  return restPorts.every((port) => port === firstPort) ? firstPort : null;
+}
+
+function extractEnvVarPort(
+  envContent: string,
+  binding: EnvVarPortBinding,
+): number | null {
+  const pattern =
+    binding.format === "url"
+      ? new RegExp(`^${binding.name}=.*?localhost:(\\d+)`, "m")
+      : new RegExp(`^${binding.name}=(\\d+)`, "m");
+  const match = envContent.match(pattern);
   return match ? Number(match[1]) : null;
 }
 
-function extractComposePort(composeContent: string): number | null {
-  const match = composeContent.match(/"(\d+):5432"/);
+function extractComposePort(
+  composeContent: string,
+  containerPort: number,
+): number | null {
+  const match = composeContent.match(new RegExp(`"(\\d+):${containerPort}"`));
   return match ? Number(match[1]) : null;
 }
 
 async function allocatePort(
+  spec: ServicePortSpec,
   worktreePath: string,
   reservedPorts: Set<number>,
 ): Promise<number> {
-  const basePortOffset = hashStringToRange(worktreePath, PORT_RANGE_SIZE);
+  const rangeSize = spec.rangeEnd - spec.rangeStart + 1;
+  const basePortOffset = hashStringToRange(
+    `${spec.id}:${worktreePath}`,
+    rangeSize,
+  );
 
-  for (let attempt = 0; attempt < PORT_RANGE_SIZE; attempt += 1) {
+  for (let attempt = 0; attempt < rangeSize; attempt += 1) {
     const candidatePort =
-      PORT_RANGE_START + ((basePortOffset + attempt) % PORT_RANGE_SIZE);
+      spec.rangeStart + ((basePortOffset + attempt) % rangeSize);
 
     if (reservedPorts.has(candidatePort)) {
       continue;
@@ -177,7 +318,7 @@ async function allocatePort(
   }
 
   throw new Error(
-    `No free Postgres host port found in range ${PORT_RANGE_START}-${PORT_RANGE_END} for worktree ${worktreePath} (reserved: ${[...reservedPorts].join(", ")})`,
+    `No free ${spec.id} host port found in range ${spec.rangeStart}-${spec.rangeEnd} for worktree ${worktreePath} (reserved: ${[...reservedPorts].join(", ")})`,
   );
 }
 
@@ -203,59 +344,63 @@ async function isPortFree(port: number): Promise<boolean> {
   });
 }
 
-async function writeEnvFile(
-  worktreePath: string,
-  mainWorktreePath: string,
-  existingEnvContent: string | null,
-  port: number,
-): Promise<void> {
-  const envPath = join(worktreePath, ".env");
-
-  if (existingEnvContent !== null) {
-    await writeFile(envPath, applyPortToEnvContent(existingEnvContent, port));
-    return;
-  }
-
+async function seedEnvContent(mainWorktreePath: string): Promise<string> {
   const mainEnvPath = join(mainWorktreePath, ".env");
   const mainEnvExamplePath = join(mainWorktreePath, ".env.example");
   const sourcePath = existsSync(mainEnvPath) ? mainEnvPath : mainEnvExamplePath;
 
   if (!existsSync(sourcePath)) {
     throw new Error(
-      `Neither ${mainEnvPath} nor ${mainEnvExamplePath} exists; cannot seed ${envPath}`,
+      `Neither ${mainEnvPath} nor ${mainEnvExamplePath} exists; cannot seed .env`,
     );
   }
 
-  const sourceContent = await readFile(sourcePath, "utf8");
-  await writeFile(envPath, applyPortToEnvContent(sourceContent, port));
-  console.log(`  seeded .env from ${sourcePath}`);
+  return readFile(sourcePath, "utf8");
 }
 
-async function writeComposeFile(
-  worktreePath: string,
-  existingComposeContent: string | null,
+function applyPortToEnvContent(
+  content: string,
+  spec: ServicePortSpec,
   port: number,
-): Promise<void> {
-  const composePath = join(worktreePath, "compose.yaml");
-
-  if (existingComposeContent === null) {
-    throw new Error(
-      `${composePath} does not exist. compose.yaml is a tracked file, so every worktree should already have a copy from 'git worktree add'; something is wrong with this checkout.`,
-    );
-  }
-
-  await writeFile(
-    composePath,
-    applyPortToComposeContent(existingComposeContent, port),
+): string {
+  return spec.envVars.reduce(
+    (accumulatedContent, binding) =>
+      applyPortToEnvVar(accumulatedContent, binding, port),
+    content,
   );
 }
 
-function applyPortToEnvContent(content: string, port: number): string {
-  return content.replace(/localhost:\d+/g, `localhost:${port}`);
+function applyPortToEnvVar(
+  content: string,
+  binding: EnvVarPortBinding,
+  port: number,
+): string {
+  if (binding.format === "url") {
+    const pattern = new RegExp(`(^${binding.name}=.*?localhost:)\\d+`, "m");
+    return pattern.test(content)
+      ? content.replace(pattern, `$1${port}`)
+      : content;
+  }
+
+  const pattern = new RegExp(`^${binding.name}=\\d*$`, "m");
+  if (pattern.test(content)) {
+    return content.replace(pattern, `${binding.name}=${port}`);
+  }
+  return `${content.replace(/\n+$/, "")}\n${binding.name}=${port}\n`;
 }
 
-function applyPortToComposeContent(content: string, port: number): string {
-  return content.replace(/"(\d+):5432"/g, `"${port}:5432"`);
+function applyPortToComposeContent(
+  content: string,
+  spec: ServicePortSpec,
+  port: number,
+): string {
+  if (spec.composeContainerPort === null) {
+    return content;
+  }
+  return content.replace(
+    new RegExp(`"\\d+:${spec.composeContainerPort}"`, "g"),
+    `"${port}:${spec.composeContainerPort}"`,
+  );
 }
 
 main().catch((error: unknown) => {

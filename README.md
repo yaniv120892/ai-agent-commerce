@@ -56,13 +56,19 @@ npx playwright install chromium
 
 ### Working in a git worktree
 
-`git worktree add` copies tracked files (including `compose.yaml`) but never gitignored ones, so a new worktree starts with no `.env` and, if left as-is, would publish Postgres on the same host port `5432` as the main checkout — colliding the moment both run `docker compose up` at once. Run this once per worktree, from inside it:
+`git worktree add` copies tracked files (including `compose.yaml`) but never gitignored ones, so a new worktree starts with no `.env` and, if left as-is, would collide with the main checkout — and every other worktree — on the same host ports: Postgres `5432`, Redis `6379` (once a compose service exists), and the Next.js dev server's `3000`. Run this once per worktree, from inside it:
 
 ```bash
 npm run worktree:setup
 ```
 
-It seeds `.env` from the main checkout's `.env` (or `.env.example` if the main checkout has none yet), and assigns that worktree a Postgres host port in the `5433`-`5533` range, deterministically derived from the worktree's path and verified free on the host, applying it consistently to `DATABASE_URL`/`TEST_DATABASE_URL` in `.env` and to the `ports:` mapping in `compose.yaml` (only the host side changes; the container stays on `5432`). It is idempotent: re-running it on an already-configured worktree reuses the same port and never touches other `.env` values (like `OPENAI_API_KEY`). It refuses to touch the main checkout, which always keeps `5432`. There's no automatic hook wired to this today: Claude Code's `WorktreeCreate` hook only fires for the VCS-agnostic worktree fallback used outside git repositories, not when `git worktree add` runs directly in a git repo, so this stays a manual, one-line step after creating a worktree.
+It seeds `.env` from the main checkout's `.env` (or `.env.example` if the main checkout has none yet), then assigns this worktree its own host port per service, deterministically derived from the worktree's path and verified free on the host:
+
+- **Postgres** — a port in `5433`-`5533`, applied to `DATABASE_URL`/`TEST_DATABASE_URL` in `.env` and to `compose.yaml`'s `database` port mapping (only the host side changes; the container stays on `5432`).
+- **Redis** — a port in `6380`-`6480`, applied to `REDIS_URL` in `.env` and to `compose.yaml`'s `redis` port mapping, the same way. This is a no-op today (no `redis` service exists in `compose.yaml` yet); it activates automatically once one is added.
+- **API dev server** — a port in `3001`-`3101`, written to `PORT` in `.env`. `npm run dev` preloads `.env` via `dotenv/config` before Next's CLI parses its port option, so `next dev` binds there instead of the default `3000`.
+
+It is idempotent: re-running it on an already-configured worktree reuses each service's already-assigned port and never touches unrelated `.env` values (like `OPENAI_API_KEY`). It refuses to touch the main checkout, which always keeps every service's default port. There's no automatic hook wired to this today: Claude Code's `WorktreeCreate` hook only fires for the VCS-agnostic worktree fallback used outside git repositories, not when `git worktree add` runs directly in a git repo, so this stays a manual, one-line step after creating a worktree.
 
 ## Architecture and decisions
 
