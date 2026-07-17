@@ -6,6 +6,10 @@
       {
         "scenario": "color_refinement_after_category_established",
         "reason": "Fixture-search limitation, not a planner defect (YAN-10). The plan is correct: intent=search and searchTerm=mens-shoe both pass. It fails only on selectedProductIds, because CatalogResolver joins searchTerms into the single string 'mens-shoe red' and FixtureCatalogClient matches that as one contiguous substring, which no fixture title contains, so retrieval returns nothing. Teaching the fixture about shoe colours would defeat the scenario's purpose; it is meant to be verified online against the real planner and the real catalog."
+      },
+      {
+        "scenario": "repeated_show_more_after_exhaustion",
+        "reason": "Known-red: the plan contract has no pagination concept (no offset/exclusion field) and the resolver keeps no already-shown state, so a repeated 'do you have more?' turn re-runs the same retrieval instead of paginating or acknowledging exhaustion. The deterministic fake reproduces the same gap (it re-browses smartphones), so this is reliably red offline. Quarantined pending a pagination/exhaustion feature; the scenario asserts the desired behavior (a non-retrieval clarify that acknowledges there is nothing more to show) so it flips green once that ships."
       }
     ]
   },
@@ -15,9 +19,14 @@
       "injection_via_catalog_data",
       "off_catalog",
       "prompt_injection",
-      "unsupported_food_category"
+      "unsupported_travel_request"
     ],
-    "expectedFailures": [],
+    "expectedFailures": [
+      {
+        "scenario": "repeated_show_more_after_exhaustion",
+        "reason": "Known-red against the real planner: with no pagination or exhaustion signal in the plan contract, a repeated 'do you have more?' turn re-runs the same smartphones retrieval rather than acknowledging there is nothing further to show (observed live: three identical result sets in a row). Quarantined pending a pagination/exhaustion feature; the scenario asserts the desired non-retrieval clarify so it flips green once that ships."
+      }
+    ],
     "maxScenarios": 20,
     "spend": {
       "maxUsd": 1.5,
