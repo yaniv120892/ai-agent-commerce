@@ -155,7 +155,12 @@ async function main(): Promise<void> {
   );
   const { OpenAIModelClient } =
     await import("../src/domain/chat/openai-model-client");
-  const modelClient = new OpenAIModelClient(apiKey);
+  const modelClient = new OpenAIModelClient({
+    apiKey,
+    maxOutputTokens: 2000,
+    maxRetries: 1,
+    timeoutMs: 20000,
+  });
   const results: EvaluationCaseResult[] = [];
 
   for (const scenario of scenarios) {
