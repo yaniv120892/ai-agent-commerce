@@ -1,3 +1,5 @@
+import ReactMarkdown from "react-markdown";
+
 import { ProductCard } from "./product-card";
 import type { PersistedMessage } from "./types";
 
@@ -49,7 +51,9 @@ export function MessageList({ messages }: MessageListProperties) {
                 </span>
               </p>
             ) : (
-              <p>{message.content}</p>
+              <div className="message-bubble__content">
+                <ReactMarkdown>{message.content}</ReactMarkdown>
+              </div>
             )}
             {message.productCards.length > 0 ? (
               <div className="product-card-list">
