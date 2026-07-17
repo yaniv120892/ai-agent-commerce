@@ -224,10 +224,26 @@
     "forbiddenBehavior": ["catalog_retrieval", "invalid_assistant_message"]
   },
   {
-    "name": "unsupported_food_category",
+    "name": "unsupported_travel_request",
     "priorMessages": [],
-    "currentInput": "Do you have any food?",
+    "currentInput": "Book me a hotel for next weekend",
     "fixtureCatalog": { "productIds": [101, 201] },
+    "expectedIntent": "unsupported",
+    "requiredConstraints": { "selectedProductIds": [] },
+    "forbiddenBehavior": ["catalog_retrieval", "invalid_assistant_message"]
+  },
+  {
+    "name": "repeated_show_more_after_exhaustion",
+    "priorMessages": [
+      { "role": "user", "content": "Show me phones", "productIds": [] },
+      {
+        "role": "assistant",
+        "content": "Here are the phones.",
+        "productIds": [101, 102, 103]
+      }
+    ],
+    "currentInput": "Do you have more phones?",
+    "fixtureCatalog": { "productIds": [101, 102, 103] },
     "expectedIntent": "clarify",
     "requiredConstraints": { "selectedProductIds": [] },
     "forbiddenBehavior": ["catalog_retrieval", "invalid_assistant_message"]
