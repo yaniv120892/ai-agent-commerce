@@ -3,6 +3,14 @@ import { expect, test } from "./fixtures";
 test("persists product cards and resumes a prior conversation from the sidebar", async ({
   page,
 }) => {
+  const externalImageRequests: string[] = [];
+
+  page.on("request", (request) => {
+    if (request.resourceType() === "image" && /^https?:/u.test(request.url())) {
+      externalImageRequests.push(request.url());
+    }
+  });
+
   await page.goto("/");
   await page.getByLabel("Message").fill("show phones under $400");
   const sendButton = page.getByRole("button", { name: "Send" });
@@ -28,6 +36,7 @@ test("persists product cards and resumes a prior conversation from the sidebar",
   await expect(page.getByText(savedPrice ?? "", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "New conversation" }).click();
+  await page.waitForURL("/");
   await expect(
     page.getByRole("heading", { name: "New conversation" }),
   ).toBeVisible();
@@ -41,4 +50,5 @@ test("persists product cards and resumes a prior conversation from the sidebar",
     page.getByRole("heading", { name: savedTitle ?? "" }),
   ).toBeVisible();
   await expect(page.getByText(savedPrice ?? "", { exact: true })).toBeVisible();
+  expect(externalImageRequests).toEqual([]);
 });

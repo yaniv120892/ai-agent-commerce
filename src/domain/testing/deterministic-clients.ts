@@ -10,17 +10,23 @@ import type {
   ModelReplyInput,
 } from "@/domain/chat/types";
 
+function createFixtureImage(label: string, background: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 224 144"><rect width="224" height="144" fill="${background}"/><text x="112" y="72" fill="white" font-family="Arial, sans-serif" font-size="16" text-anchor="middle">${label}</text></svg>`;
+
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
 export const fixtureCatalog: CatalogProduct[] = [
   {
     availabilityStatus: "In Stock",
     category: "smartphones",
     description: "Compact phone with a dependable camera.",
     id: 101,
-    images: ["https://example.test/orbit-phone-mini.png"],
+    images: [createFixtureImage("Orbit Phone Mini", "#2f6bff")],
     price: 299,
     rating: 4.5,
     stock: 12,
-    thumbnail: "https://example.test/orbit-phone-mini.png",
+    thumbnail: createFixtureImage("Orbit Phone Mini", "#2f6bff"),
     title: "Orbit Phone Mini",
   },
   {
@@ -28,11 +34,11 @@ export const fixtureCatalog: CatalogProduct[] = [
     category: "smartphones",
     description: "Phone with a bright display and long battery life.",
     id: 102,
-    images: ["https://example.test/atlas-phone-pro.png"],
+    images: [createFixtureImage("Atlas Phone Pro", "#7e3af2")],
     price: 399,
     rating: 4.8,
     stock: 7,
-    thumbnail: "https://example.test/atlas-phone-pro.png",
+    thumbnail: createFixtureImage("Atlas Phone Pro", "#7e3af2"),
     title: "Atlas Phone Pro",
   },
   {
@@ -40,11 +46,11 @@ export const fixtureCatalog: CatalogProduct[] = [
     category: "smartphones",
     description: "Premium phone for demanding mobile work.",
     id: 103,
-    images: ["https://example.test/titan-phone-max.png"],
+    images: [createFixtureImage("Titan Phone Max", "#d64545")],
     price: 699,
     rating: 4.9,
     stock: 2,
-    thumbnail: "https://example.test/titan-phone-max.png",
+    thumbnail: createFixtureImage("Titan Phone Max", "#d64545"),
     title: "Titan Phone Max",
   },
   {
@@ -52,11 +58,11 @@ export const fixtureCatalog: CatalogProduct[] = [
     category: "laptops",
     description: "Lightweight laptop for daily work.",
     id: 201,
-    images: ["https://example.test/nova-laptop-air.png"],
+    images: [createFixtureImage("Nova Laptop Air", "#1f8a70")],
     price: 749,
     rating: 4.6,
     stock: 9,
-    thumbnail: "https://example.test/nova-laptop-air.png",
+    thumbnail: createFixtureImage("Nova Laptop Air", "#1f8a70"),
     title: "Nova Laptop Air",
   },
   {
@@ -64,11 +70,11 @@ export const fixtureCatalog: CatalogProduct[] = [
     category: "tablets",
     description: "Tablet for reading and watching video.",
     id: 301,
-    images: ["https://example.test/lyra-tablet.png"],
+    images: [createFixtureImage("Lyra Tablet", "#c27803")],
     price: 349,
     rating: 4.2,
     stock: 0,
-    thumbnail: "https://example.test/lyra-tablet.png",
+    thumbnail: createFixtureImage("Lyra Tablet", "#c27803"),
     title: "Lyra Tablet",
   },
 ];
