@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 
+import { deriveActiveContext } from "../src/domain/chat/active-context";
 import { CatalogResolver } from "../src/domain/catalog/catalog-resolver";
 import type {
   CatalogProduct,
@@ -50,6 +51,7 @@ async function evaluateScenario(
 
   try {
     const plan = await modelClient.createRetrievalPlan({
+      activeContext: deriveActiveContext(history),
       allowedCategorySlugs: [
         ...new Set(products.map((product) => product.category)),
       ],
