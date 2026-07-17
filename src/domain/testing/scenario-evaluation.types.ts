@@ -1,5 +1,7 @@
 import type { RetrievalIntent } from "@/domain/catalog/types";
 
+import type { ScenarioVerdict } from "./evaluation-gate.types";
+
 export const forbiddenBehaviors = [
   "catalog_retrieval",
   "invalid_assistant_message",
@@ -52,12 +54,24 @@ export type EvaluationCaseResult = {
   selectedProductIds: number[];
 };
 
+export type EvaluationSpendSummary = {
+  requestCount: number;
+  totalUsd: number;
+};
+
+export type EvaluationSummary = {
+  blockingReasons: string[];
+  failed: number;
+  passRate: number;
+  passed: number;
+  quarantined: number;
+  total: number;
+};
+
 export type EvaluationReport = {
   generatedAt: string;
   results: EvaluationCaseResult[];
-  summary: {
-    failed: number;
-    passed: number;
-    total: number;
-  };
+  spend: EvaluationSpendSummary | null;
+  summary: EvaluationSummary;
+  verdicts: ScenarioVerdict[];
 };
