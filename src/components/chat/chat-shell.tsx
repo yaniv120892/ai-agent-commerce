@@ -3,6 +3,8 @@
 import { useEffect, useReducer, useRef } from "react";
 import { useRouter } from "next/navigation";
 
+import { CONVERSATION_TITLE_MAX_LENGTH } from "@/domain/conversations/constants";
+
 import { ChatComposer } from "./chat-composer";
 import { ConversationSidebar } from "./conversation-sidebar";
 import { MessageList } from "./message-list";
@@ -145,7 +147,9 @@ function createOptimisticConversation(
       createLocalUserMessage(content, requestId),
       createPendingAssistantMessage(requestId),
     ],
-    title: existingConversation?.title ?? content.slice(0, 60),
+    title:
+      existingConversation?.title ??
+      content.slice(0, CONVERSATION_TITLE_MAX_LENGTH),
     updatedAt: now,
   };
 }
@@ -168,7 +172,9 @@ function createConversation(
       createLocalUserMessage(content, requestId),
       assistantMessage,
     ],
-    title: existingConversation?.title ?? content.slice(0, 60),
+    title:
+      existingConversation?.title ??
+      content.slice(0, CONVERSATION_TITLE_MAX_LENGTH),
     updatedAt: now,
   };
 }
@@ -190,7 +196,7 @@ function createRecoveryConversation(
     createdAt: now,
     id: conversationId,
     messages: [],
-    title: content.slice(0, 60),
+    title: content.slice(0, CONVERSATION_TITLE_MAX_LENGTH),
     updatedAt: now,
   };
 }

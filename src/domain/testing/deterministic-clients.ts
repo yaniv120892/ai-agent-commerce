@@ -8,10 +8,7 @@ import type {
   ModelClient,
   ModelPlanInput,
   ModelReplyInput,
-  ModelTitleInput,
 } from "@/domain/chat/types";
-
-const MAX_DETERMINISTIC_TITLE_LENGTH = 60;
 
 function createFixtureImage(label: string, background: string): string {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 224 144"><rect width="224" height="144" fill="${background}"/><text x="112" y="72" fill="white" font-family="Arial, sans-serif" font-size="16" text-anchor="middle">${label}</text></svg>`;
@@ -239,12 +236,6 @@ export class DeterministicModelClient implements ModelClient {
     }
 
     return `I found ${input.products.length} matching catalog product${input.products.length === 1 ? "" : "s"}.`;
-  }
-
-  public async createConversationTitle(
-    input: ModelTitleInput,
-  ): Promise<string> {
-    return input.userMessage.slice(0, MAX_DETERMINISTIC_TITLE_LENGTH);
   }
 
   private createComparisonPlan(priorProductIds: number[]): RetrievalPlan {
