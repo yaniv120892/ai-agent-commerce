@@ -4,10 +4,12 @@ import { PlanValidator } from "@/domain/catalog/plan-validator";
 import type { RetrievalPlan } from "@/domain/catalog/types";
 import { ChatService } from "@/domain/chat/chat-service";
 import { PlanRepairService } from "@/domain/chat/plan-repair-service";
+import { RedisReplyCompletionCache } from "@/domain/chat/redis-reply-completion-cache";
 import type { ModelClient } from "@/domain/chat/types";
 import { ConversationRepository } from "@/domain/conversations/conversation-repository";
 import type { ProductCardSnapshot } from "@/domain/conversations/types";
 import { prisma } from "@/lib/db/prisma";
+import { redisClient } from "@/lib/redis/redis-client";
 
 vi.mock("@/app/api/conversation-dependencies", () => ({
   getConversationApiDependencies: vi.fn(),
@@ -155,6 +157,71 @@ describe("conversation routes", () => {
         },
       }),
     ).resolves.toBe(2);
+  });
+
+  it("recovers a persistence failure on a different instance via the shared Redis-backed cache", async () => {
+    const buildChatServiceInstance = () =>
+      new ChatService(
+        repository,
+        catalogResolver,
+        modelClient,
+        new PlanRepairService(
+          modelClient,
+          (categorySlugs) => new PlanValidator(categorySlugs),
+        ),
+        new RedisReplyCompletionCache(redisClient, 300),
+      );
+    const instanceA = buildChatServiceInstance();
+    const instanceB = buildChatServiceInstance();
+
+    const completionFailure = vi
+      .spyOn(repository, "completeAssistantMessage")
+      .mockRejectedValueOnce(new Error("PostgreSQL write failed"));
+    const request = {
+      clientRequestId: "00000000-0000-4000-8000-000000000110",
+      content: "Show me a phone.",
+    };
+
+    vi.mocked(getConversationApiDependencies).mockReturnValueOnce({
+      chatService: instanceA,
+      conversationRepository: repository,
+    });
+    const failedResponse = await createConversation(
+      new Request("http://localhost/api/conversations", {
+        body: JSON.stringify(request),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      }),
+    );
+
+    expect(failedResponse.status).toBe(503);
+    const failedPayload = await failedResponse.json();
+
+    vi.mocked(getConversationApiDependencies).mockReturnValueOnce({
+      chatService: instanceB,
+      conversationRepository: repository,
+    });
+    const retryResponse = await appendMessage(
+      new Request("http://localhost/api/conversations/messages", {
+        body: JSON.stringify(request),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      }),
+      {
+        params: Promise.resolve({
+          conversationId: failedPayload.conversationId,
+        }),
+      },
+    );
+
+    expect(retryResponse.status).toBe(200);
+    await expect(retryResponse.json()).resolves.toMatchObject({
+      conversationId: failedPayload.conversationId,
+      status: "complete",
+    });
+    expect(modelClient.createRetrievalPlan).toHaveBeenCalledOnce();
+    expect(modelClient.createGroundedReply).toHaveBeenCalledOnce();
+    expect(completionFailure).toHaveBeenCalledTimes(2);
   });
 
   it("returns 404 when a cleared database no longer has the requested conversation", async () => {
