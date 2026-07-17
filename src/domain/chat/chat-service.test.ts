@@ -594,12 +594,17 @@ describe("ChatService", () => {
   });
 });
 
+const modelSelection = {
+  plannerModel: "planner-model",
+  replyModel: "reply-model",
+};
+
 describe("OpenAIModelClient", () => {
   it("requests strict structured output for every retrieval-plan field", async () => {
     const parse = vi.fn().mockResolvedValue({
       output_parsed: createPlan(),
     });
-    const client = new OpenAIModelClient("test-key", {
+    const client = new OpenAIModelClient("test-key", modelSelection, {
       responses: {
         create: vi.fn(),
         parse,
@@ -617,7 +622,7 @@ describe("OpenAIModelClient", () => {
     expect(plan).toEqual(createPlan());
     expect(parse).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "gpt-5.4-mini",
+        model: "planner-model",
         text: expect.objectContaining({
           format: expect.objectContaining({
             name: "retrieval_plan",
@@ -652,7 +657,7 @@ describe("OpenAIModelClient", () => {
     const create = vi.fn().mockResolvedValue({
       output_text: "Phone Ultra is a fit.",
     });
-    const client = new OpenAIModelClient("test-key", {
+    const client = new OpenAIModelClient("test-key", modelSelection, {
       responses: {
         create,
         parse: vi.fn(),
@@ -667,7 +672,7 @@ describe("OpenAIModelClient", () => {
 
     expect(reply).toBe("Phone Ultra is a fit.");
     expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ model: "gpt-5.4-mini" }),
+      expect.objectContaining({ model: "reply-model" }),
     );
     expect(create.mock.calls[0][0].input[0].content).toContain(
       "facts not included in the provided product snapshots",
@@ -681,7 +686,7 @@ describe("OpenAIModelClient", () => {
     const create = vi.fn().mockResolvedValue({
       output_text: `  ${"Cheapest smartphones under budget ".repeat(3)}  `,
     });
-    const client = new OpenAIModelClient("test-key", {
+    const client = new OpenAIModelClient("test-key", modelSelection, {
       responses: {
         create,
         parse: vi.fn(),
@@ -694,7 +699,7 @@ describe("OpenAIModelClient", () => {
 
     expect(title).toHaveLength(60);
     expect(create).toHaveBeenCalledWith(
-      expect.objectContaining({ model: "gpt-5.4-mini" }),
+      expect.objectContaining({ model: "reply-model" }),
     );
     expect(create.mock.calls[0][0].input[0].content).toContain(
       "short conversation title",

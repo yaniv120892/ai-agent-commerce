@@ -2,11 +2,15 @@ import "server-only";
 
 import { z } from "zod";
 
+import { resolveOpenAIModelSelection } from "./openai-model-config";
 import type { Environment } from "./types";
 
 const environmentSchema = z.object({
   DATABASE_URL: z.url(),
   OPENAI_API_KEY: z.string().min(1),
+  OPENAI_MODEL: z.string().min(1).optional(),
+  OPENAI_PLANNER_MODEL: z.string().min(1).optional(),
+  OPENAI_REPLY_MODEL: z.string().min(1).optional(),
   DUMMYJSON_BASE_URL: z
     .literal("https://dummyjson.com")
     .default("https://dummyjson.com"),
@@ -35,9 +39,12 @@ export function createEnvironment(values: NodeJS.ProcessEnv): Environment {
     throw new Error("E2E_MODE is allowed only in Next.js development mode");
   }
 
+  const openAiModels = resolveOpenAIModelSelection(values);
+
   return {
     databaseUrl: parsedEnvironment.DATABASE_URL,
     openAiApiKey: parsedEnvironment.OPENAI_API_KEY,
+    openAiModels,
     dummyJsonBaseUrl: parsedEnvironment.DUMMYJSON_BASE_URL,
     dummyJsonTimeoutMs: parsedEnvironment.DUMMYJSON_TIMEOUT_MS,
     e2eMode: parsedEnvironment.E2E_MODE === "true",

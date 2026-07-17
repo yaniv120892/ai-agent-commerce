@@ -52,7 +52,7 @@ export function getConversationApiDependencies(): ConversationApiDependencies {
   );
   const modelClient = environment.e2eMode
     ? new DeterministicModelClient()
-    : new OpenAIModelClient(environment.openAiApiKey);
+    : new OpenAIModelClient(environment.openAiApiKey, environment.openAiModels);
 
   return {
     chatService: new ChatService(

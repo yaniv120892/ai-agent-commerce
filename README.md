@@ -28,6 +28,8 @@ npm run db:migrate
 npm run dev
 ```
 
+The model identifier is configuration, not code, so a rollback or a canary is an environment change and a restart rather than a deploy. `OPENAI_MODEL` selects the model for every OpenAI call and defaults to `gpt-5.4-mini` when unset. `OPENAI_PLANNER_MODEL` and `OPENAI_REPLY_MODEL` override it for the retrieval planner and for the grounded reply and title calls respectively, so the two can be evaluated or canaried independently; each falls back to `OPENAI_MODEL`. The resolved planner and reply models are logged once at server startup, so what is actually running is observable without inspecting configuration.
+
 Open the URL printed by Next.js, normally `http://localhost:3000`. `npm run db:migrate` uses the local `DATABASE_URL` from `.env` and applies the committed Prisma migrations. The Compose stack publishes PostgreSQL on `localhost:5432` (initializing an isolated `ai_commerce_test` database for integration and E2E tests) and Redis on `localhost:6379`, used to cache DummyJSON catalog responses.
 
 The database is the persistence boundary:

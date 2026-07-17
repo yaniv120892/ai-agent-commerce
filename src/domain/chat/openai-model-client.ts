@@ -11,6 +11,7 @@ import type {
   ModelPlanInput,
   ModelReplyInput,
   ModelTitleInput,
+  OpenAIModelSelection,
   RetrievalPlan,
 } from "./types";
 
@@ -44,8 +45,8 @@ export class OpenAIModelClient implements ModelClient {
 
   public constructor(
     apiKey: string,
+    private readonly models: OpenAIModelSelection,
     client: OpenAIResponsesClient = new OpenAI({ apiKey }),
-    private readonly model = "gpt-5.4-mini",
   ) {
     this.client = client;
   }
@@ -65,7 +66,7 @@ export class OpenAIModelClient implements ModelClient {
           role: "user",
         },
       ],
-      model: this.model,
+      model: this.models.plannerModel,
       text: {
         format: zodTextFormat(retrievalPlanSchema, "retrieval_plan"),
       },
@@ -96,7 +97,7 @@ export class OpenAIModelClient implements ModelClient {
           role: "user",
         },
       ],
-      model: this.model,
+      model: this.models.replyModel,
     });
     const content = response.output_text.trim();
 
@@ -122,7 +123,7 @@ export class OpenAIModelClient implements ModelClient {
           role: "user",
         },
       ],
-      model: this.model,
+      model: this.models.replyModel,
     });
     const title = response.output_text.trim();
 
