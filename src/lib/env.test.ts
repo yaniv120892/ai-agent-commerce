@@ -82,6 +82,32 @@ it("rejects a non-numeric OPENAI_TIMEOUT_MS", () => {
   ).toThrow("OPENAI_TIMEOUT_MS");
 });
 
+it("exposes the configured OpenAI models", () => {
+  const parsedEnvironment = createEnvironment({
+    DATABASE_URL: "postgresql://localhost/ai_commerce",
+    OPENAI_API_KEY: "test-key",
+    OPENAI_MODEL: "configured-model",
+    OPENAI_PLANNER_MODEL: "planner-canary",
+  }) as {
+    openAiModels: { plannerModel: string; replyModel: string };
+  };
+
+  expect(parsedEnvironment.openAiModels).toEqual({
+    plannerModel: "planner-canary",
+    replyModel: "configured-model",
+  });
+});
+
+it("rejects an empty OPENAI_MODEL", () => {
+  expect(() =>
+    createEnvironment({
+      DATABASE_URL: "postgresql://localhost/ai_commerce",
+      OPENAI_API_KEY: "test-key",
+      OPENAI_MODEL: "",
+    }),
+  ).toThrow("OPENAI_MODEL");
+});
+
 it("rejects E2E mode outside development", () => {
   expect(() =>
     createEnvironment({

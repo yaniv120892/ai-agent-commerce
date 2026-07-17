@@ -601,6 +601,7 @@ describe("OpenAIModelClient", () => {
     apiKey: "test-key",
     maxOutputTokens: 2000,
     maxRetries: 1,
+    models: { plannerModel: "planner-model", replyModel: "reply-model" },
     timeoutMs: 20000,
   };
 
@@ -609,6 +610,7 @@ describe("OpenAIModelClient", () => {
       apiKey: "test-key",
       maxOutputTokens: 500,
       maxRetries: 1,
+      models: { plannerModel: "planner-model", replyModel: "reply-model" },
       timeoutMs: 1234,
     });
 
@@ -639,7 +641,7 @@ describe("OpenAIModelClient", () => {
     expect(parse).toHaveBeenCalledWith(
       expect.objectContaining({
         max_output_tokens: 2000,
-        model: "gpt-5.4-mini",
+        model: "planner-model",
         text: expect.objectContaining({
           format: expect.objectContaining({
             name: "retrieval_plan",
@@ -691,7 +693,7 @@ describe("OpenAIModelClient", () => {
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         max_output_tokens: 2000,
-        model: "gpt-5.4-mini",
+        model: "reply-model",
       }),
     );
     expect(create.mock.calls[0][0].input[0].content).toContain(
@@ -721,7 +723,7 @@ describe("OpenAIModelClient", () => {
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         max_output_tokens: 2000,
-        model: "gpt-5.4-mini",
+        model: "reply-model",
       }),
     );
     expect(create.mock.calls[0][0].input[0].content).toContain(
