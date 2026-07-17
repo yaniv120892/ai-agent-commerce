@@ -24,10 +24,6 @@ export type ModelReplyInput = {
   products: ProductCardSnapshot[];
 };
 
-export type ModelTitleInput = {
-  userMessage: string;
-};
-
 export type OpenAIModelSelection = {
   plannerModel: string;
   replyModel: string;
@@ -36,7 +32,6 @@ export type OpenAIModelSelection = {
 export interface ModelClient {
   createRetrievalPlan(input: ModelPlanInput): Promise<RetrievalPlan>;
   createGroundedReply(input: ModelReplyInput): Promise<string>;
-  createConversationTitle(input: ModelTitleInput): Promise<string>;
 }
 
 export type StartConversationInput = {

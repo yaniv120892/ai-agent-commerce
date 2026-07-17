@@ -1,7 +1,10 @@
 import type { CatalogResolver } from "../catalog/catalog-resolver";
 import { CatalogError } from "../catalog/types";
 import type { ConversationRepository } from "../conversations/conversation-repository";
-import { MESSAGE_CONTENT_MAX_LENGTH } from "../conversations/constants";
+import {
+  CONVERSATION_TITLE_MAX_LENGTH,
+  MESSAGE_CONTENT_MAX_LENGTH,
+} from "../conversations/constants";
 import type {
   AppendedAssistantReply,
   PersistedConversation,
@@ -64,7 +67,6 @@ export class ChatService {
       );
     }
 
-    const title = await this.createConversationTitle(content);
     let conversation: PersistedConversation;
 
     try {
@@ -72,7 +74,7 @@ export class ChatService {
         await this.conversationRepository.createConversationWithPendingReply({
           clientRequestId: input.clientRequestId,
           content,
-          title,
+          title: this.createConversationTitle(content),
         });
     } catch {
       return this.createErrorResponse(
@@ -416,14 +418,8 @@ export class ChatService {
     return trimmedContent;
   }
 
-  private async createConversationTitle(content: string): Promise<string> {
-    try {
-      return await this.modelClient.createConversationTitle({
-        userMessage: content,
-      });
-    } catch {
-      return content.slice(0, 80);
-    }
+  private createConversationTitle(content: string): string {
+    return content.slice(0, CONVERSATION_TITLE_MAX_LENGTH);
   }
 
   private createErrorResponse(
