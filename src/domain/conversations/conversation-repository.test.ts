@@ -169,6 +169,7 @@ describe("ConversationRepository", () => {
       content: "Here are two options.",
       lastCategorySlug: null,
       lastSearchTerms: ["first", "second"],
+      retrievalAnchorMessage: "Show me two options",
       productCards: [
         {
           productId: 101,
@@ -197,6 +198,7 @@ describe("ConversationRepository", () => {
         content: "Here are two options.",
         lastCategorySlug: null,
         lastSearchTerms: ["first", "second"],
+        retrievalAnchorMessage: "Show me two options",
         status: "complete",
       },
       where: {

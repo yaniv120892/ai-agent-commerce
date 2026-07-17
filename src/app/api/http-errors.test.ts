@@ -11,6 +11,7 @@ const assistantMessage = {
   lastCategorySlug: null,
   lastSearchTerms: [],
   productCards: [],
+  retrievalAnchorMessage: null,
   role: "assistant" as const,
   status: "failed" as const,
 };

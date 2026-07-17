@@ -18,8 +18,8 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "eval:offline": "tsx scripts/eval-offline.ts",
-    "eval:online": "tsx scripts/eval-online.ts",
+    "eval:offline": "tsx --conditions=react-server scripts/eval-offline.ts",
+    "eval:online": "tsx --conditions=react-server scripts/eval-online.ts",
     "worktree:setup": "tsx scripts/setup-worktree-env.ts"
   },
   "dependencies": {

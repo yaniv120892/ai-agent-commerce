@@ -7,6 +7,7 @@ export type ReplyCompletion = {
   content: string;
   productCards: ProductCardSnapshot[];
   retrievalSummary: CompletedRetrievalSummary;
+  retrievalAnchorMessage: string | null;
 };
 
 export class ReplyCompletionCache {

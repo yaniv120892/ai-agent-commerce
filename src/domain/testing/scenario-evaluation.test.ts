@@ -28,9 +28,12 @@ function createPlanSummary(
 ): ScenarioPlanSummary {
   return {
     assistantMessage: null,
+    categorySlug: null,
+    inStock: null,
     maxPrice: null,
     referencedProductIds: [],
     searchTerms: [],
+    sort: "relevance",
     ...overrides,
   };
 }

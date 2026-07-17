@@ -69,6 +69,7 @@ describe("ConversationRepository", () => {
       lastCategorySlug: "furniture",
       lastSearchTerms: ["desk", "chair"],
       messageId: assistantMessage.id,
+      retrievalAnchorMessage: "I need a desk chair.",
       productCards: [
         {
           category: "furniture",

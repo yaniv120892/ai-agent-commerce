@@ -14,6 +14,7 @@ export type LastAttemptedSearch = {
 export type ActiveRetrievalContext = {
   categorySlug: string | null;
   lastAttemptedSearch: LastAttemptedSearch | null;
+  lastResolvedUserMessage: string | null;
 };
 
 export type CompletedRetrievalSummary = {

@@ -25,10 +25,15 @@ export class CatalogResolver {
   public async resolve(
     plan: ValidatedRetrievalPlan,
     allowedCategorySlugs: string[],
+    priorProductIds: number[] = [],
   ): Promise<ResolvedCatalogResult> {
     const allowedCategorySlugSet = new Set(allowedCategorySlugs);
     const products = await this.retrieveProducts(plan);
-    const productCards = this.rankProducts(products, plan).map((product) =>
+    const rankedProducts = this.rankProducts(products, plan);
+    const eligibleProducts = plan.isContinuation
+      ? this.excludeShownProducts(rankedProducts, priorProductIds)
+      : rankedProducts;
+    const productCards = eligibleProducts.map((product) =>
       this.mapProductCard(product, allowedCategorySlugSet),
     );
 
@@ -161,6 +166,15 @@ export class CatalogResolver {
     }
 
     return left.product.id - right.product.id;
+  }
+
+  private excludeShownProducts(
+    products: CatalogProduct[],
+    priorProductIds: number[],
+  ): CatalogProduct[] {
+    const shownProductIds = new Set(priorProductIds);
+
+    return products.filter((product) => !shownProductIds.has(product.id));
   }
 
   private mapProductCard(

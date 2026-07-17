@@ -23,6 +23,7 @@ import {
   type CompletedRetrievalSummary,
   type ModelClient,
   type PlanAttemptOutcome,
+  type RetrievalPlan,
   type StartConversationInput,
 } from "./types";
 import { deriveActiveContext } from "./active-context";
@@ -206,6 +207,7 @@ export class ChatService {
         cachedCompletion.content,
         cachedCompletion.productCards,
         cachedCompletion.retrievalSummary,
+        cachedCompletion.retrievalAnchorMessage,
       );
     }
 
@@ -297,6 +299,7 @@ export class ChatService {
         plan.assistantMessage,
         [],
         { categorySlug: null, searchTerms: [] },
+        null,
       );
     }
 
@@ -306,6 +309,7 @@ export class ChatService {
       const result = await this.catalogResolver.resolve(
         plan,
         allowedCategorySlugs,
+        messageContext.priorProductIds,
       );
       productCards = result.productCards;
     } catch (error) {
@@ -352,7 +356,24 @@ export class ChatService {
       content,
       productCards,
       { categorySlug: plan.categorySlug, searchTerms: plan.searchTerms },
+      this.computeRetrievalAnchorMessage(plan, userMessage, messageContext),
     );
+  }
+
+  private computeRetrievalAnchorMessage(
+    plan: RetrievalPlan,
+    userMessage: string,
+    messageContext: MessageContext,
+  ): string | null {
+    if (plan.intent !== "search" && plan.intent !== "browse_category") {
+      return null;
+    }
+
+    if (!plan.isContinuation) {
+      return userMessage;
+    }
+
+    return messageContext.activeContext?.lastResolvedUserMessage ?? userMessage;
   }
 
   private returnExistingAssistantReply(
@@ -389,6 +410,7 @@ export class ChatService {
     content: string,
     productCards: ProductCardSnapshot[],
     retrievalSummary: CompletedRetrievalSummary,
+    retrievalAnchorMessage: string | null,
   ): Promise<ChatResponse> {
     try {
       const completedAssistantMessage =
@@ -399,6 +421,7 @@ export class ChatService {
           lastSearchTerms: retrievalSummary.searchTerms,
           messageId: assistantMessage.id,
           productCards,
+          retrievalAnchorMessage,
         });
       this.replyCompletionCache.delete(conversationId, assistantMessage.id);
 
@@ -412,6 +435,7 @@ export class ChatService {
         content,
         productCards,
         retrievalSummary,
+        retrievalAnchorMessage,
       });
 
       return this.failAssistantMessage(

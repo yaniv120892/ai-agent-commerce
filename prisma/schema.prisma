@@ -19,25 +19,26 @@ model Conversation {
 }
 
 model Message {
-  id               String               @id @default(uuid()) @db.Uuid
-  conversationId   String               @map("conversation_id") @db.Uuid
-  clientRequestId  String?              @map("client_request_id") @db.Uuid
-  replyToMessageId String?              @unique @map("reply_to_message_id") @db.Uuid
-  sequence         Int
-  role             MessageRole
-  content          String               @default("")
-  status           MessageStatus
-  lastSearchTerms  String[]             @default([]) @map("last_search_terms")
-  lastCategorySlug String?              @map("last_category_slug")
-  createdAt        DateTime             @default(now()) @map("created_at")
-  conversation     Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  replyToMessage   Message?             @relation("MessageReply", fields: [replyToMessageId], references: [id], onDelete: Cascade)
-  assistantReply   Message?             @relation("MessageReply")
-  productCards     MessageProductCard[]
+  id                     String               @id @default(uuid()) @db.Uuid
+  conversationId         String               @map("conversation_id") @db.Uuid
+  clientRequestId        String?              @map("client_request_id") @db.Uuid
+  replyToMessageId       String?              @unique @map("reply_to_message_id") @db.Uuid
+  sequence               Int
+  role                   MessageRole
+  content                String               @default("")
+  status                 MessageStatus
+  retrievalAnchorMessage String?              @map("retrieval_anchor_message")
+  lastSearchTerms        String[]             @default([]) @map("last_search_terms")
+  lastCategorySlug       String?              @map("last_category_slug")
+  createdAt              DateTime             @default(now()) @map("created_at")
+  conversation           Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  replyToMessage         Message?             @relation("MessageReply", fields: [replyToMessageId], references: [id], onDelete: Cascade)
+  assistantReply         Message?             @relation("MessageReply")
+  productCards           MessageProductCard[]
 
   @@unique([conversationId, clientRequestId])
-  @@index([conversationId, createdAt])
   @@unique([conversationId, sequence])
+  @@index([conversationId, createdAt])
   @@map("messages")
 }
 
