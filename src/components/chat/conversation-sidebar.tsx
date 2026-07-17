@@ -85,6 +85,7 @@ export function ConversationSidebar({
                 className="conversation-sidebar__link"
                 href={`/conversations/${conversation.id}`}
                 onClick={onConversationNavigate}
+                title={conversation.title}
               >
                 {conversation.title}
               </Link>

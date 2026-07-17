@@ -34,8 +34,9 @@ it("filters malformed conversation summaries before rendering recent links", asy
     />,
   );
 
-  expect(
-    await screen.findByRole("link", { name: "Phone shopping" }),
-  ).toBeVisible();
+  const link = await screen.findByRole("link", { name: "Phone shopping" });
+
+  expect(link).toBeVisible();
+  expect(link).toHaveAttribute("title", "Phone shopping");
   expect(screen.getAllByRole("link")).toHaveLength(1);
 });

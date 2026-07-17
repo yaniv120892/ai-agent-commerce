@@ -154,6 +154,7 @@ button:disabled {
 .conversation-sidebar ul {
   display: grid;
   gap: var(--space-1);
+  grid-template-columns: minmax(0, 1fr);
   list-style: none;
   margin: 0;
   padding: 0;
