@@ -2,7 +2,9 @@ import "dotenv/config";
 
 import { defineConfig, devices } from "@playwright/test";
 
-const port = 3001;
+// Worktrees are assigned a free PORT by scripts/setup-worktree-env.ts; honouring
+// it keeps parallel worktrees from colliding on one hardcoded dev-server port.
+const port = process.env.PORT ?? 3001;
 const databaseUrl =
   process.env.TEST_DATABASE_URL ??
   "postgresql://ai_commerce:ai_commerce_local@localhost:5432/ai_commerce_test";
@@ -10,6 +12,9 @@ const databaseUrl =
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
+  // The cleanDatabase fixture truncates one shared database before every test,
+  // so spec files must not run concurrently on separate workers.
+  workers: 1,
   use: {
     baseURL: `http://localhost:${port}`,
     trace: "retain-on-failure",
@@ -29,6 +34,12 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      testIgnore: /mobile-layout\.spec\.ts/u,
+    },
+    {
+      name: "mobile-chrome",
+      use: { ...devices["Pixel 5"] },
+      testMatch: /mobile-layout\.spec\.ts/u,
     },
   ],
 });

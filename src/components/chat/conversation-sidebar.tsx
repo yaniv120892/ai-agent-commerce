@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ConversationSummary } from "./types";
 
+export const CONVERSATION_SIDEBAR_ID = "conversation-sidebar";
+
 type ConversationSidebarProperties = {
   activeConversationId: string | null;
+  isOpen: boolean;
   onConversationNavigate: () => void;
   onNewConversation: () => void;
 };
@@ -28,10 +31,12 @@ function isConversationSummary(value: unknown): value is ConversationSummary {
 
 export function ConversationSidebar({
   activeConversationId,
+  isOpen,
   onConversationNavigate,
   onNewConversation,
 }: ConversationSidebarProperties) {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const sidebarRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -61,8 +66,19 @@ export function ConversationSidebar({
     };
   }, [activeConversationId]);
 
+  useEffect(() => {
+    if (isOpen) {
+      sidebarRef.current?.focus();
+    }
+  }, [isOpen]);
+
   return (
-    <aside className="conversation-sidebar">
+    <aside
+      className={`conversation-sidebar${isOpen ? " conversation-sidebar--open" : ""}`}
+      id={CONVERSATION_SIDEBAR_ID}
+      ref={sidebarRef}
+      tabIndex={-1}
+    >
       <button
         className="new-conversation-button"
         onClick={onNewConversation}
