@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 
+import { catalogSorts, retrievalIntents } from "../catalog/types";
 import type { ProductCardSnapshot } from "../conversations/types";
 
 import type {
@@ -19,19 +20,12 @@ const retrievalPlanSchema = z
     assistantMessage: z.string().nullable(),
     categorySlug: z.string().nullable(),
     inStock: z.boolean().nullable(),
-    intent: z.enum([
-      "search",
-      "browse_category",
-      "product_detail",
-      "compare",
-      "clarify",
-      "unsupported",
-    ]),
+    intent: z.enum(retrievalIntents),
     maxPrice: z.number().nullable(),
     minRating: z.number().nullable(),
     referencedProductIds: z.array(z.number().int()),
     searchTerms: z.array(z.string()),
-    sort: z.enum(["relevance", "price_asc", "price_desc", "rating_desc"]),
+    sort: z.enum(catalogSorts),
   })
   .strict();
 
