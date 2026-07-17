@@ -6,17 +6,21 @@ import { PlanValidator } from "@/domain/catalog/plan-validator";
 import { ChatService } from "@/domain/chat/chat-service";
 import { createModelClient } from "@/domain/chat/model-client-factory";
 import { PlanRepairService } from "@/domain/chat/plan-repair-service";
-import { ReplyCompletionCache } from "@/domain/chat/reply-completion-cache";
+import { RedisReplyCompletionCache } from "@/domain/chat/redis-reply-completion-cache";
 import { ConversationRepository } from "@/domain/conversations/conversation-repository";
 import { prisma } from "@/lib/db/prisma";
 import { environment } from "@/lib/env";
+import { redisClient } from "@/lib/redis/redis-client";
 
 type ConversationApiDependencies = {
   chatService: ChatService;
   conversationRepository: ConversationRepository;
 };
 
-const replyCompletionCache = new ReplyCompletionCache();
+const replyCompletionCache = new RedisReplyCompletionCache(
+  redisClient,
+  environment.replyCompletionCacheTtlSeconds,
+);
 
 export function getConversationApiDependencies(): ConversationApiDependencies {
   const conversationRepository = new ConversationRepository(prisma);
