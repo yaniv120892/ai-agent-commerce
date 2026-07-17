@@ -12,5 +12,5 @@ const { redisClient } = await import("../../src/lib/redis/redis-client");
 
 afterAll(async () => {
   await prisma.$disconnect();
-  await redisClient.quit();
+  await redisClient?.quit();
 });

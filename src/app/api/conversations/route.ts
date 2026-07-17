@@ -13,6 +13,10 @@ import {
 import { MESSAGE_CONTENT_MAX_LENGTH } from "@/domain/conversations/constants";
 import type { ConversationSummary } from "@/domain/conversations/types";
 
+// Starting a conversation chains three sequential model calls (title, retrieval
+// plan, grounded reply) plus catalog HTTP, which exceeds the platform default.
+export const maxDuration = 60;
+
 function createRequestId(): string {
   return crypto.randomUUID();
 }

@@ -4,7 +4,7 @@ export type Environment = {
   openAiApiKey: string;
   dummyJsonBaseUrl: string;
   dummyJsonTimeoutMs: number;
-  redisUrl: string;
+  redisUrl: string | undefined;
   catalogCacheListTtlSeconds: number;
   catalogCacheDetailTtlSeconds: number;
 };
