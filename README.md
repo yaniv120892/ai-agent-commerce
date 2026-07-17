@@ -111,13 +111,13 @@ The model path is bounded by the same discipline. `OPENAI_TIMEOUT_MS` (default 2
 
 Successful, schema-validated catalog responses are cached in Redis so overlapping requests (e.g. many sessions searching "phones") don't each re-fetch DummyJSON. `CATALOG_CACHE_LIST_TTL_SECONDS` (default 300) covers search/category/full-list results; `CATALOG_CACHE_DETAIL_TTL_SECONDS` (default 1800) covers single-product lookups, which change less often. Errors are never cached. Because DummyJSON is a static demo dataset, a fixed TTL is sufficient and there is no active invalidation path; a live catalog source would need a change-notification event to invalidate affected keys. If Redis itself is unreachable, catalog requests fall through to DummyJSON directly rather than failing.
 
-| Request kind    | DummyJSON endpoint and server policy                                                      |
-| --------------- | ----------------------------------------------------------------------------------------- |
-| Text search     | `GET /products/search?q=...&limit=100`, followed by local filters and ranking.            |
-| Category browse | `GET /products/category/:slug?limit=100`; category slugs must be in the server allowlist. |
-| Generic browse  | `GET /products?limit=100`.                                                                |
-| Product detail  | `GET /products/:id`, only for one product ID already shown in the active conversation.    |
-| Comparison      | `GET /products/:id` for exactly two product IDs already shown in the active conversation. |
+| Request kind    | DummyJSON endpoint and server policy                                                                 |
+| --------------- | ---------------------------------------------------------------------------------------------------- |
+| Text search     | `GET /products/search?q=...&limit=100`, followed by local filters and ranking.                       |
+| Category browse | `GET /products/category/:slug?limit=100`; category slugs must be in the server allowlist.            |
+| Generic browse  | `GET /products?limit=100`.                                                                           |
+| Product detail  | `GET /products/:id`, only for one product ID already shown in the active conversation.               |
+| Comparison      | `GET /products/:id` for exactly two _distinct_ product IDs already shown in the active conversation. |
 
 The planner can request at most two search terms, a known category, maximum price, minimum rating, stock state, one of four sort values, whether the request is a continuation, and up to two prior product references. The server validates every field and rejects extra or incompatible fields before retrieval. Search/category results are filtered locally. Results are capped at six cards and ranked deterministically: exact title or token matches first, then the requested explicit sort (`price_asc`, `price_desc`, or `rating_desc`) when present; relevance preserves upstream candidate order; product ID is the final tie-breaker.
 

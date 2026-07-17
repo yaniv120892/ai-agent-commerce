@@ -114,6 +114,19 @@ describe("PlanValidator", () => {
     ).toThrowError(expect.objectContaining({ code: "INVALID_RETRIEVAL_PLAN" }));
   });
 
+  it("rejects a comparison plan referencing the same product twice", () => {
+    expect(() =>
+      createValidator().validate(
+        createPlan({
+          intent: "compare",
+          referencedProductIds: [1, 1],
+          searchTerms: [],
+        }),
+        [1],
+      ),
+    ).toThrowError(expect.objectContaining({ code: "INVALID_RETRIEVAL_PLAN" }));
+  });
+
   it("rejects a comparison plan carrying search terms", () => {
     expect(() =>
       createValidator().validate(
