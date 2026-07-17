@@ -505,6 +505,21 @@ button:disabled {
   outline: none;
 }
 
+.chat-composer__footer {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.chat-composer__counter {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.chat-composer__counter--over {
+  color: var(--color-danger-500);
+}
+
 .chat-composer button {
   justify-self: end;
 }
