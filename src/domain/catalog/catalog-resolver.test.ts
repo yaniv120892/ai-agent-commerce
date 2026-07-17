@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { CatalogClient } from "./catalog-client";
 import { CatalogResolver } from "./catalog-resolver";
-import type { RetrievalPlan } from "./types";
+import { CatalogError, type RetrievalPlan } from "./types";
 
 const catalogProducts = [
   {
@@ -62,7 +62,7 @@ function createCatalogClient() {
   return {
     getProduct: vi.fn(),
     listCategoryProducts: vi.fn(),
-    listCategorySlugs: vi.fn(),
+    listCategorySlugs: vi.fn().mockResolvedValue(["smartphones"]),
     listProducts: vi.fn(),
     searchProducts: vi.fn().mockResolvedValue(catalogProducts),
   };
@@ -71,7 +71,7 @@ function createCatalogClient() {
 describe("CatalogResolver", () => {
   it("filters a search result by max price and sorts ascending by price", async () => {
     const catalogClient = createCatalogClient();
-    const resolver = new CatalogResolver(catalogClient, ["smartphones"]);
+    const resolver = new CatalogResolver(catalogClient);
 
     const result = await resolver.resolve(
       createPlan({ maxPrice: 300, sort: "price_asc" }),
@@ -86,7 +86,7 @@ describe("CatalogResolver", () => {
 
   it("rejects a category not present in the category allowlist", async () => {
     const catalogClient = createCatalogClient();
-    const resolver = new CatalogResolver(catalogClient, ["smartphones"]);
+    const resolver = new CatalogResolver(catalogClient);
 
     await expect(
       resolver.resolve(
@@ -106,7 +106,7 @@ describe("CatalogResolver", () => {
 
   it("resolves ordinal references only from prior conversation product IDs", async () => {
     const catalogClient = createCatalogClient();
-    const resolver = new CatalogResolver(catalogClient, ["smartphones"]);
+    const resolver = new CatalogResolver(catalogClient);
 
     await expect(
       resolver.resolve(
@@ -136,7 +136,7 @@ describe("CatalogResolver", () => {
         title: "Phone Mini",
       },
     ]);
-    const resolver = new CatalogResolver(catalogClient, ["smartphones"]);
+    const resolver = new CatalogResolver(catalogClient);
 
     const result = await resolver.resolve(createPlan(), []);
 
@@ -147,7 +147,7 @@ describe("CatalogResolver", () => {
 
   it("rejects a clarify plan with search terms without catalog access", async () => {
     const catalogClient = createCatalogClient();
-    const resolver = new CatalogResolver(catalogClient, ["smartphones"]);
+    const resolver = new CatalogResolver(catalogClient);
 
     await expect(
       resolver.resolve(createPlan({ intent: "clarify" }), []),
@@ -158,7 +158,7 @@ describe("CatalogResolver", () => {
 
   it("rejects an unsupported plan with a category without catalog access", async () => {
     const catalogClient = createCatalogClient();
-    const resolver = new CatalogResolver(catalogClient, ["smartphones"]);
+    const resolver = new CatalogResolver(catalogClient);
 
     await expect(
       resolver.resolve(
@@ -176,7 +176,7 @@ describe("CatalogResolver", () => {
 
   it("rejects a category browse plan with search terms without catalog access", async () => {
     const catalogClient = createCatalogClient();
-    const resolver = new CatalogResolver(catalogClient, ["smartphones"]);
+    const resolver = new CatalogResolver(catalogClient);
 
     await expect(
       resolver.resolve(
@@ -191,7 +191,7 @@ describe("CatalogResolver", () => {
 
   it("rejects a search plan with a prior product reference without catalog access", async () => {
     const catalogClient = createCatalogClient();
-    const resolver = new CatalogResolver(catalogClient, ["smartphones"]);
+    const resolver = new CatalogResolver(catalogClient);
 
     await expect(
       resolver.resolve(createPlan({ referencedProductIds: [1] }), [1]),
@@ -203,7 +203,7 @@ describe("CatalogResolver", () => {
 
   it("rejects a comparison plan with search terms without catalog access", async () => {
     const catalogClient = createCatalogClient();
-    const resolver = new CatalogResolver(catalogClient, ["smartphones"]);
+    const resolver = new CatalogResolver(catalogClient);
 
     await expect(
       resolver.resolve(
@@ -218,7 +218,7 @@ describe("CatalogResolver", () => {
   it("uses the category endpoint for a valid category browse", async () => {
     const catalogClient = createCatalogClient();
     catalogClient.listCategoryProducts.mockResolvedValue(catalogProducts);
-    const resolver = new CatalogResolver(catalogClient, ["smartphones"]);
+    const resolver = new CatalogResolver(catalogClient);
 
     await resolver.resolve(
       createPlan({
@@ -238,7 +238,7 @@ describe("CatalogResolver", () => {
   it("uses the generic products endpoint for a category browse without a category", async () => {
     const catalogClient = createCatalogClient();
     catalogClient.listProducts.mockResolvedValue(catalogProducts);
-    const resolver = new CatalogResolver(catalogClient, ["smartphones"]);
+    const resolver = new CatalogResolver(catalogClient);
 
     await resolver.resolve(
       createPlan({
@@ -256,7 +256,7 @@ describe("CatalogResolver", () => {
   it("uses the product details endpoint for a valid product detail", async () => {
     const catalogClient = createCatalogClient();
     catalogClient.getProduct.mockResolvedValue(catalogProducts[0]);
-    const resolver = new CatalogResolver(catalogClient, ["smartphones"]);
+    const resolver = new CatalogResolver(catalogClient);
 
     await resolver.resolve(
       createPlan({
@@ -276,7 +276,7 @@ describe("CatalogResolver", () => {
     catalogClient.getProduct
       .mockResolvedValueOnce(catalogProducts[0])
       .mockResolvedValueOnce(catalogProducts[1]);
-    const resolver = new CatalogResolver(catalogClient, ["smartphones"]);
+    const resolver = new CatalogResolver(catalogClient);
 
     await resolver.resolve(
       createPlan({
@@ -319,7 +319,7 @@ describe("CatalogResolver", () => {
         stock: 0,
       },
     ]);
-    const resolver = new CatalogResolver(catalogClient, ["smartphones"]);
+    const resolver = new CatalogResolver(catalogClient);
 
     const result = await resolver.resolve(
       createPlan({
@@ -343,11 +343,56 @@ describe("CatalogResolver", () => {
         id: index + 1,
       })),
     );
-    const resolver = new CatalogResolver(catalogClient, ["smartphones"]);
+    const resolver = new CatalogResolver(catalogClient);
 
     const result = await resolver.resolve(createPlan(), []);
 
     expect(result.productCards).toHaveLength(6);
+  });
+
+  it("validates a category against the catalog client's current slug list rather than a fixed set", async () => {
+    const catalogClient = createCatalogClient();
+    catalogClient.listCategorySlugs.mockResolvedValue(["laptops"]);
+    catalogClient.listCategoryProducts.mockResolvedValue(catalogProducts);
+    const resolver = new CatalogResolver(catalogClient);
+
+    await expect(
+      resolver.resolve(
+        createPlan({
+          categorySlug: "smartphones",
+          intent: "browse_category",
+          searchTerms: [],
+        }),
+        [],
+      ),
+    ).rejects.toMatchObject({ code: "INVALID_RETRIEVAL_PLAN" });
+
+    await resolver.resolve(
+      createPlan({
+        categorySlug: "laptops",
+        intent: "browse_category",
+        searchTerms: [],
+      }),
+      [],
+    );
+
+    expect(catalogClient.listCategoryProducts).toHaveBeenCalledWith("laptops");
+  });
+
+  it("propagates a catalog error when fetching category slugs fails", async () => {
+    const catalogClient = createCatalogClient();
+    catalogClient.listCategorySlugs.mockRejectedValue(
+      new CatalogError(
+        "UPSTREAM_UNAVAILABLE",
+        "Catalog service is unavailable",
+      ),
+    );
+    const resolver = new CatalogResolver(catalogClient);
+
+    await expect(resolver.resolve(createPlan(), [])).rejects.toMatchObject({
+      code: "UPSTREAM_UNAVAILABLE",
+    });
+    expect(catalogClient.searchProducts).not.toHaveBeenCalled();
   });
 });
 

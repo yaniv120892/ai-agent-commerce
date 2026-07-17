@@ -36,7 +36,10 @@ type ConversationStore = Pick<
   | "getConversation"
 >;
 
-type CatalogResolution = Pick<CatalogResolver, "resolve">;
+type CatalogResolution = Pick<
+  CatalogResolver,
+  "listAllowedCategorySlugs" | "resolve"
+>;
 
 type MessageContext = {
   history: PersistedMessage[];
@@ -49,7 +52,6 @@ export class ChatService {
     private readonly conversationRepository: ConversationStore,
     private readonly catalogResolver: CatalogResolution,
     private readonly modelClient: ModelClient,
-    private readonly allowedCategorySlugs: string[],
     private readonly replyCompletionCache = new ReplyCompletionCache(),
   ) {}
 
@@ -196,12 +198,26 @@ export class ChatService {
     userMessage: string,
     messageContext: MessageContext,
   ): Promise<ChatResponse> {
+    let allowedCategorySlugs: string[];
+
+    try {
+      allowedCategorySlugs =
+        await this.catalogResolver.listAllowedCategorySlugs();
+    } catch {
+      return this.failAssistantMessage(
+        "CATALOG_UNAVAILABLE",
+        "Catalog categories are temporarily unavailable. Please retry.",
+        conversationId,
+        assistantMessage,
+      );
+    }
+
     let plan: RetrievalPlan;
 
     try {
       plan = await this.modelClient.createRetrievalPlan({
         activeContext: messageContext.activeContext,
-        allowedCategorySlugs: this.allowedCategorySlugs,
+        allowedCategorySlugs,
         history: messageContext.history,
         priorProductIds: messageContext.priorProductIds,
         userMessage,

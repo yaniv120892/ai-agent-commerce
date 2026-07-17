@@ -9,33 +9,6 @@ import { ConversationRepository } from "@/domain/conversations/conversation-repo
 import { prisma } from "@/lib/db/prisma";
 import { environment } from "@/lib/env";
 
-const allowedCategorySlugs = [
-  "beauty",
-  "fragrances",
-  "furniture",
-  "groceries",
-  "home-decoration",
-  "kitchen-accessories",
-  "laptops",
-  "mens-shirts",
-  "mens-shoes",
-  "mens-watches",
-  "mobile-accessories",
-  "motorcycle",
-  "skin-care",
-  "smartphones",
-  "sports-accessories",
-  "sunglasses",
-  "tablets",
-  "tops",
-  "vehicle",
-  "womens-bags",
-  "womens-dresses",
-  "womens-jewellery",
-  "womens-shoes",
-  "womens-watches",
-];
-
 type ConversationApiDependencies = {
   chatService: ChatService;
   conversationRepository: ConversationRepository;
@@ -45,10 +18,7 @@ const replyCompletionCache = new ReplyCompletionCache();
 
 export function getConversationApiDependencies(): ConversationApiDependencies {
   const conversationRepository = new ConversationRepository(prisma);
-  const catalogResolver = new CatalogResolver(
-    getCatalogClient(),
-    allowedCategorySlugs,
-  );
+  const catalogResolver = new CatalogResolver(getCatalogClient());
   const modelClient = createModelClient({
     e2eMode: environment.e2eMode,
     openAiConfig: {
@@ -65,7 +35,6 @@ export function getConversationApiDependencies(): ConversationApiDependencies {
       conversationRepository,
       catalogResolver,
       modelClient,
-      allowedCategorySlugs,
       replyCompletionCache,
     ),
     conversationRepository,

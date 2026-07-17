@@ -97,6 +97,7 @@ function createDependencies() {
     getConversation: vi.fn().mockResolvedValue(createConversation([])),
   };
   const catalogResolver = {
+    listAllowedCategorySlugs: vi.fn().mockResolvedValue(["smartphones"]),
     resolve: vi.fn().mockResolvedValue({ productCards }),
   };
   const modelClient: ModelClient = {
@@ -120,7 +121,6 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
     );
 
     const response = await service.startConversation({
@@ -172,7 +172,6 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
     );
     const content = "a".repeat(CONVERSATION_TITLE_MAX_LENGTH + 40);
 
@@ -200,7 +199,6 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
     );
 
     const response = await service.startConversation({
@@ -236,7 +234,6 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
     );
 
     const response = await service.startConversation({
@@ -267,7 +264,6 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
     );
 
     const response = await service.startConversation({
@@ -283,6 +279,35 @@ describe("ChatService", () => {
       conversationId: "conversation-id",
       messageId: "assistant-message-id",
     });
+    expect(catalogResolver.resolve).not.toHaveBeenCalled();
+  });
+
+  it("marks the persisted assistant reply failed when the category allowlist is unavailable", async () => {
+    const { catalogResolver, conversationRepository, modelClient } =
+      createDependencies();
+    catalogResolver.listAllowedCategorySlugs.mockRejectedValue(
+      new Error("catalog unavailable"),
+    );
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+    );
+
+    const response = await service.startConversation({
+      clientRequestId: "request-id",
+      content: "Find me a phone",
+    });
+
+    expect(response).toMatchObject({
+      error: { code: "CATALOG_UNAVAILABLE" },
+      status: "error",
+    });
+    expect(conversationRepository.failAssistantMessage).toHaveBeenCalledWith({
+      conversationId: "conversation-id",
+      messageId: "assistant-message-id",
+    });
+    expect(modelClient.createRetrievalPlan).not.toHaveBeenCalled();
     expect(catalogResolver.resolve).not.toHaveBeenCalled();
   });
 
@@ -305,7 +330,6 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
     );
 
     await service.appendMessage({
@@ -344,7 +368,6 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
     );
 
     await service.appendMessage({
@@ -381,7 +404,6 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones", "laptops"],
     );
 
     await service.appendMessage({
@@ -417,7 +439,6 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
     );
 
     const response = await service.appendMessage({
@@ -453,7 +474,6 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
     );
 
     const response = await service.appendMessage({
@@ -487,7 +507,6 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
     );
 
     const response = await service.appendMessage({
@@ -531,7 +550,6 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
     );
     const input = {
       clientRequestId: "request-id",
@@ -580,7 +598,6 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
     );
 
     await service.appendMessage({
@@ -604,7 +621,6 @@ describe("ChatService", () => {
       conversationRepository,
       catalogResolver,
       modelClient,
-      ["smartphones"],
     );
 
     const response = await service.startConversation({
