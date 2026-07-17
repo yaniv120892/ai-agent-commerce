@@ -13,4 +13,5 @@ export type Environment = {
   redisUrl: string;
   catalogCacheListTtlSeconds: number;
   catalogCacheDetailTtlSeconds: number;
+  replyCompletionCacheTtlSeconds: number;
 };

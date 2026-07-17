@@ -30,6 +30,11 @@ const environmentSchema = z.object({
     .int()
     .positive()
     .default(1800),
+  REPLY_COMPLETION_CACHE_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(300),
 });
 
 export function createEnvironment(values: NodeJS.ProcessEnv): Environment {
@@ -59,6 +64,8 @@ export function createEnvironment(values: NodeJS.ProcessEnv): Environment {
       parsedEnvironment.CATALOG_CACHE_LIST_TTL_SECONDS,
     catalogCacheDetailTtlSeconds:
       parsedEnvironment.CATALOG_CACHE_DETAIL_TTL_SECONDS,
+    replyCompletionCacheTtlSeconds:
+      parsedEnvironment.REPLY_COMPLETION_CACHE_TTL_SECONDS,
   };
 }
 
