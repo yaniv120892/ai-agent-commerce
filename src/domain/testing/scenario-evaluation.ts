@@ -1,13 +1,18 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
+import { z } from "zod";
+
 import type { CatalogProduct } from "@/domain/catalog/types";
+import { catalogSorts, retrievalIntents } from "@/domain/catalog/types";
 import type {
   PersistedMessage,
   ProductCardSnapshot,
 } from "@/domain/conversations/types";
 
+import { forbiddenBehaviors } from "./scenario-evaluation.types";
 import type {
+  ForbiddenBehavior,
   Scenario,
   ScenarioMessage,
   ScenarioPlanSummary,
@@ -16,25 +21,68 @@ import type {
 export type {
   EvaluationCaseResult,
   EvaluationReport,
+  ForbiddenBehavior,
   Scenario,
   ScenarioMessage,
   ScenarioPlanSummary,
   ScenarioRequiredConstraints,
 } from "./scenario-evaluation.types";
+export { forbiddenBehaviors } from "./scenario-evaluation.types";
 
 export type ProductLookup = (productId: number) => CatalogProduct;
 
 const scenariosPath = resolve(process.cwd(), "tests/evals/scenarios.json");
 
+const scenarioMessageSchema = z
+  .object({
+    content: z.string().min(1),
+    productIds: z.array(z.number().int().positive()),
+    role: z.enum(["assistant", "user"]),
+  })
+  .strict();
+
+const scenarioRequiredConstraintsSchema = z
+  .object({
+    categorySlug: z.string().min(1).optional(),
+    inStock: z.boolean().optional(),
+    maxPrice: z.number().finite().nonnegative().optional(),
+    referencedProductIds: z.array(z.number().int().positive()).optional(),
+    searchTerm: z.string().min(1).optional(),
+    selectedProductIds: z.array(z.number().int().positive()).optional(),
+    sort: z.enum(catalogSorts).optional(),
+  })
+  .strict();
+
+const scenarioSchema = z
+  .object({
+    currentInput: z.string().min(1),
+    expectedIntent: z.enum(retrievalIntents),
+    fixtureCatalog: z
+      .object({ productIds: z.array(z.number().int().positive()) })
+      .strict(),
+    forbiddenBehavior: z.array(z.enum(forbiddenBehaviors)),
+    name: z.string().min(1),
+    priorMessages: z.array(scenarioMessageSchema),
+    requiredConstraints: scenarioRequiredConstraintsSchema,
+  })
+  .strict() satisfies z.ZodType<Scenario>;
+
+const scenarioSetSchema = z
+  .array(scenarioSchema)
+  .min(1)
+  .superRefine(reportDuplicateScenarioNames);
+
 export async function loadScenarios(): Promise<Scenario[]> {
   const contents = await readFile(scenariosPath, "utf8");
-  const scenarios: unknown = JSON.parse(contents);
+  const parsedScenarios = scenarioSetSchema.safeParse(JSON.parse(contents));
 
-  if (!Array.isArray(scenarios)) {
-    throw new Error("Evaluation scenarios must be an array");
+  if (!parsedScenarios.success) {
+    throw new Error(
+      `Invalid evaluation scenarios in ${scenariosPath}:\n${z.prettifyError(parsedScenarios.error)}`,
+    );
   }
 
-  return scenarios as Scenario[];
+  return parsedScenarios.data;
 }
 
 export function createHistory(
@@ -101,11 +149,24 @@ export function checkConstraints(
     );
   }
 
+  if (scenario.requiredConstraints.categorySlug !== undefined) {
+    checks.categorySlug =
+      plan.categorySlug === scenario.requiredConstraints.categorySlug;
+  }
+
+  if (scenario.requiredConstraints.inStock !== undefined) {
+    checks.inStock = plan.inStock === scenario.requiredConstraints.inStock;
+  }
+
+  if (scenario.requiredConstraints.sort !== undefined) {
+    checks.sort = plan.sort === scenario.requiredConstraints.sort;
+  }
+
   return checks;
 }
 
 export function checkForbiddenBehavior(
-  forbiddenBehavior: string[],
+  forbiddenBehavior: ForbiddenBehavior[],
   selectedProducts: { price: number }[],
   selectedProductIds: number[],
   planMaxPrice: number | null,
@@ -156,6 +217,25 @@ function isInvalidAssistantMessage(assistantMessage: string | null): boolean {
   const normalized = assistantMessage.trim().toLowerCase();
 
   return normalized.length === 0 || normalized === "null";
+}
+
+function reportDuplicateScenarioNames(
+  scenarios: { name: string }[],
+  context: z.RefinementCtx,
+): void {
+  const seenNames = new Set<string>();
+
+  for (const [index, scenario] of scenarios.entries()) {
+    if (seenNames.has(scenario.name)) {
+      context.addIssue({
+        code: "custom",
+        message: `Duplicate scenario name "${scenario.name}"; names key the expected-failure allowlist and must be unique`,
+        path: [index, "name"],
+      });
+    }
+
+    seenNames.add(scenario.name);
+  }
 }
 
 function createProductCard(
