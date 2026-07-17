@@ -75,6 +75,11 @@ const modelErrorMessageByChatErrorCode: Record<ModelChatErrorCode, string> = {
 const INVALID_RETRIEVAL_PLAN_MESSAGE =
   "The assistant could not turn that request into a valid catalog lookup. Try rephrasing.";
 
+const PERSISTENCE_UNAVAILABLE_MESSAGE =
+  "Conversation storage is unavailable. Please retry.";
+
+const INVALID_MESSAGE_LENGTH_MESSAGE = `Message content must be between 1 and ${MESSAGE_CONTENT_MAX_LENGTH.toLocaleString("en-US")} characters.`;
+
 export class ChatService {
   public constructor(
     private readonly conversationRepository: ConversationStore,
@@ -92,7 +97,7 @@ export class ChatService {
     if (content === null) {
       return this.createErrorResponse(
         "INVALID_MESSAGE",
-        `Message content must be between 1 and ${MESSAGE_CONTENT_MAX_LENGTH.toLocaleString("en-US")} characters.`,
+        INVALID_MESSAGE_LENGTH_MESSAGE,
         null,
         null,
       );
@@ -110,7 +115,7 @@ export class ChatService {
     } catch {
       return this.createErrorResponse(
         "PERSISTENCE_UNAVAILABLE",
-        "Conversation storage is unavailable. Please retry.",
+        PERSISTENCE_UNAVAILABLE_MESSAGE,
         null,
         null,
       );
@@ -142,7 +147,7 @@ export class ChatService {
     if (content === null) {
       return this.createErrorResponse(
         "INVALID_MESSAGE",
-        `Message content must be between 1 and ${MESSAGE_CONTENT_MAX_LENGTH.toLocaleString("en-US")} characters.`,
+        INVALID_MESSAGE_LENGTH_MESSAGE,
         input.conversationId,
         null,
       );
@@ -157,7 +162,7 @@ export class ChatService {
     } catch {
       return this.createErrorResponse(
         "PERSISTENCE_UNAVAILABLE",
-        "Conversation storage is unavailable. Please retry.",
+        PERSISTENCE_UNAVAILABLE_MESSAGE,
         input.conversationId,
         null,
       );
@@ -185,7 +190,7 @@ export class ChatService {
     } catch {
       return this.createErrorResponse(
         "PERSISTENCE_UNAVAILABLE",
-        "Conversation storage is unavailable. Please retry.",
+        PERSISTENCE_UNAVAILABLE_MESSAGE,
         input.conversationId,
         null,
       );
@@ -257,13 +262,8 @@ export class ChatService {
         userMessage,
       });
     } catch (error) {
-      if (
-        error instanceof CatalogError &&
-        error.code === "INVALID_RETRIEVAL_PLAN"
-      ) {
-        return this.failAssistantMessage(
-          "INVALID_RETRIEVAL_PLAN",
-          INVALID_RETRIEVAL_PLAN_MESSAGE,
+      if (this.isInvalidRetrievalPlanError(error)) {
+        return this.failWithInvalidRetrievalPlan(
           conversationId,
           assistantMessage,
         );
@@ -283,9 +283,7 @@ export class ChatService {
 
     if (plan.intent === "clarify" || plan.intent === "unsupported") {
       if (plan.assistantMessage === null) {
-        return this.failAssistantMessage(
-          "INVALID_RETRIEVAL_PLAN",
-          INVALID_RETRIEVAL_PLAN_MESSAGE,
+        return this.failWithInvalidRetrievalPlan(
           conversationId,
           assistantMessage,
         );
@@ -311,13 +309,8 @@ export class ChatService {
       );
       productCards = result.productCards;
     } catch (error) {
-      if (
-        error instanceof CatalogError &&
-        error.code === "INVALID_RETRIEVAL_PLAN"
-      ) {
-        return this.failAssistantMessage(
-          "INVALID_RETRIEVAL_PLAN",
-          INVALID_RETRIEVAL_PLAN_MESSAGE,
+      if (this.isInvalidRetrievalPlanError(error)) {
+        return this.failWithInvalidRetrievalPlan(
           conversationId,
           assistantMessage,
         );
@@ -441,7 +434,7 @@ export class ChatService {
 
       return this.failAssistantMessage(
         "PERSISTENCE_UNAVAILABLE",
-        "Conversation storage is unavailable. Please retry.",
+        PERSISTENCE_UNAVAILABLE_MESSAGE,
         conversationId,
         assistantMessage,
       );
@@ -472,7 +465,7 @@ export class ChatService {
     } catch {
       return this.createErrorResponse(
         "PERSISTENCE_UNAVAILABLE",
-        "Conversation storage is unavailable. Please retry.",
+        PERSISTENCE_UNAVAILABLE_MESSAGE,
         conversationId,
         assistantMessage,
       );
@@ -482,6 +475,24 @@ export class ChatService {
       ...assistantMessage,
       status: "failed",
     });
+  }
+
+  private isInvalidRetrievalPlanError(error: unknown): boolean {
+    return (
+      error instanceof CatalogError && error.code === "INVALID_RETRIEVAL_PLAN"
+    );
+  }
+
+  private failWithInvalidRetrievalPlan(
+    conversationId: string,
+    assistantMessage: PersistedMessage,
+  ): Promise<ChatResponse> {
+    return this.failAssistantMessage(
+      "INVALID_RETRIEVAL_PLAN",
+      INVALID_RETRIEVAL_PLAN_MESSAGE,
+      conversationId,
+      assistantMessage,
+    );
   }
 
   private failFromModelError(

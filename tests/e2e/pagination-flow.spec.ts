@@ -20,11 +20,13 @@ test("shows new, non-overlapping cards when the user asks for more", async ({
   await expect(sendButton).toBeEnabled();
   await sendButton.click();
 
-  await expect
-    .poll(async () => productCards.getByRole("heading").allTextContents())
-    .not.toEqual(firstPageTitles);
+  const assistantMessages = page.locator(".message-list__item--assistant");
+  await expect(assistantMessages).toHaveCount(2);
 
-  const secondPageTitles = await productCards
+  const continuationCards = assistantMessages.nth(1).locator(".product-card");
+  await expect(continuationCards.first()).toBeVisible();
+
+  const secondPageTitles = await continuationCards
     .getByRole("heading")
     .allTextContents();
 
