@@ -13,7 +13,7 @@
     "test:unit": "vitest run --config vitest.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test": "npm run test:unit && npm run test:integration",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --config playwright.config.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",

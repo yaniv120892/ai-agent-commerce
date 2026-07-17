@@ -7,4 +7,5 @@ node_modules/
 .next/
 playwright-report/
 test-results/
+artifacts/evaluations/
 postgres_data/
