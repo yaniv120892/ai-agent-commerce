@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 
 import { getConversationApiDependencies } from "@/app/api/conversation-dependencies";
 import { parseConversationId } from "@/app/api/conversation-request";
-import { jsonError } from "@/app/api/http-errors";
+import { createRequestId, jsonError } from "@/app/api/http-errors";
 
 type RouteContext = {
   params: Promise<{ conversationId: string }>;
 };
 
 export async function GET(_request: Request, context: RouteContext) {
-  const requestId = crypto.randomUUID();
+  const requestId = createRequestId();
   const { conversationId: rawConversationId } = await context.params;
   const conversationId = parseConversationId(rawConversationId);
 
@@ -19,6 +19,7 @@ export async function GET(_request: Request, context: RouteContext) {
       "The conversation identifier is invalid.",
       422,
       requestId,
+      false,
     );
   }
 
@@ -33,6 +34,7 @@ export async function GET(_request: Request, context: RouteContext) {
         "This conversation is no longer available.",
         404,
         requestId,
+        false,
       );
     }
 
@@ -43,6 +45,7 @@ export async function GET(_request: Request, context: RouteContext) {
       "Conversation storage is unavailable. Please retry.",
       503,
       requestId,
+      true,
     );
   }
 }

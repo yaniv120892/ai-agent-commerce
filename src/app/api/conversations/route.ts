@@ -6,16 +6,13 @@ import {
   parseMessageRequest,
 } from "@/app/api/conversation-request";
 import {
+  createRequestId,
   jsonChatResponse,
   jsonError,
   unexpectedServerError,
 } from "@/app/api/http-errors";
 import { MESSAGE_CONTENT_MAX_LENGTH } from "@/domain/conversations/constants";
 import type { ConversationSummary } from "@/domain/conversations/types";
-
-function createRequestId(): string {
-  return crypto.randomUUID();
-}
 
 export async function GET(request: Request) {
   const requestId = createRequestId();
@@ -27,6 +24,7 @@ export async function GET(request: Request) {
       "The conversation list parameters are invalid.",
       422,
       requestId,
+      false,
     );
   }
 
@@ -42,6 +40,7 @@ export async function GET(request: Request) {
       "Conversation storage is unavailable. Please retry.",
       503,
       requestId,
+      true,
     );
   }
 }
@@ -56,12 +55,16 @@ export async function POST(request: Request): Promise<NextResponse> {
       `Message content must be between 1 and ${MESSAGE_CONTENT_MAX_LENGTH.toLocaleString("en-US")} characters.`,
       422,
       requestId,
+      false,
     );
   }
 
   try {
     const { chatService } = getConversationApiDependencies();
-    const response = await chatService.startConversation(input);
+    const response = await chatService.startConversation({
+      ...input,
+      requestId,
+    });
 
     return jsonChatResponse(response, 201, requestId);
   } catch {
