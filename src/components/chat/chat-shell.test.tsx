@@ -312,6 +312,66 @@ describe("ChatShell", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows the conversation URL without a route navigation when a turn completes", async () => {
+    const createdConversationId = "00000000-0000-4000-8000-000000000010";
+    const pushStateSpy = vi.spyOn(window.history, "pushState");
+    let postCallCount = 0;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, options?: RequestInit) => {
+        if (options?.method === "POST") {
+          postCallCount += 1;
+
+          if (postCallCount === 1) {
+            return Promise.resolve(
+              jsonResponse({
+                assistantMessage: createAssistantMessage("Here is a phone."),
+                conversationId: createdConversationId,
+                status: "complete",
+              }),
+            );
+          }
+
+          return Promise.resolve(
+            jsonResponse({
+              assistantMessage: {
+                ...createAssistantMessage("Here is a second phone."),
+                id: "00000000-0000-4000-8000-000000000011",
+              },
+              conversationId: createdConversationId,
+              status: "complete",
+            }),
+          );
+        }
+
+        return Promise.resolve(jsonResponse([]));
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<ChatShell initialConversation={null} />);
+    await user.type(screen.getByLabelText("Message"), "Find me a phone");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    expect(await screen.findByText("Here is a phone.")).toBeVisible();
+
+    expect(push).not.toHaveBeenCalled();
+    expect(pushStateSpy).toHaveBeenCalledWith(
+      null,
+      "",
+      `/conversations/${createdConversationId}`,
+    );
+
+    await user.type(screen.getByLabelText("Message"), "Show me more");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(await screen.findByText("Here is a second phone.")).toBeVisible();
+    expect(screen.getByText("Show me more")).toBeVisible();
+    expect(pushStateSpy).toHaveBeenCalledTimes(1);
+
+    window.history.pushState(null, "", "/");
+  });
+
   it("keeps the composer disabled while a pending response is reconciled", async () => {
     let resolveConversation: ((response: Response) => void) | undefined;
     const conversationResponse = new Promise<Response>((resolve) => {

@@ -81,7 +81,22 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
 
     activeRequestController.current = null;
     dispatch({ type: "complete", conversation });
-    router.push(`/conversations/${conversation.id}`);
+    showConversationUrl(conversation.id);
+  }
+
+  // A router.push here would remount the shell ("/" and "/conversations/
+  // [conversationId]" are different route segments), and the unmount abort
+  // would cancel a follow-up message sent before the navigation settles. The
+  // completed conversation is already fully client-side, so update only the
+  // URL; Next patches history.pushState to keep the router in sync.
+  function showConversationUrl(conversationId: string): void {
+    const conversationPath = `/conversations/${conversationId}`;
+
+    if (window.location.pathname === conversationPath) {
+      return;
+    }
+
+    window.history.pushState(null, "", conversationPath);
   }
 
   function showRequestError(
