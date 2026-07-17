@@ -1,7 +1,5 @@
 import "dotenv/config";
 
-import { mkdir, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 
 import { deriveActiveContext } from "../src/domain/chat/active-context";
@@ -11,6 +9,12 @@ import { CatalogResolver } from "../src/domain/catalog/catalog-resolver";
 import type { RetrievalIntent } from "../src/domain/catalog/types";
 import type { ModelClient } from "../src/domain/chat/types";
 import { getFixtureProduct } from "../src/domain/testing/deterministic-clients";
+import { loadEvaluationConfig } from "../src/domain/testing/evaluation-config";
+import { EvaluationGate } from "../src/domain/testing/evaluation-gate";
+import {
+  createEvaluationReport,
+  writeEvaluationReport,
+} from "../src/domain/testing/evaluation-report";
 import {
   checkConstraints,
   checkForbiddenBehavior,
@@ -20,12 +24,11 @@ import {
 } from "../src/domain/testing/scenario-evaluation";
 import type {
   EvaluationCaseResult,
-  EvaluationReport,
   Scenario,
 } from "../src/domain/testing/scenario-evaluation";
+import { SpendMeter } from "../src/domain/testing/spend-meter";
+import type { SpendSnapshot } from "../src/domain/testing/spend-meter";
 import { resolveOpenAIModelSelection } from "../src/lib/openai-model-config";
-
-const artifactsDirectory = resolve(process.cwd(), "artifacts/evaluations");
 
 // The real DummyJSON catalog decides its own search/browse results, so a
 // scenario's exact selectedProductIds (tuned against the deterministic
@@ -118,18 +121,6 @@ async function evaluateScenario(
   };
 }
 
-async function writeReport(report: EvaluationReport): Promise<string> {
-  await mkdir(artifactsDirectory, { recursive: true });
-  const reportPath = resolve(
-    artifactsDirectory,
-    `online-${report.generatedAt.replaceAll(/[:.]/gu, "-")}.json`,
-  );
-
-  await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
-
-  return reportPath;
-}
-
 async function main(): Promise<void> {
   if (process.env.RUN_ONLINE_EVAL !== "true") {
     console.log(
@@ -138,17 +129,30 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.log(
-    "Online evaluation is not CI-safe: it has external cost and availability dependencies.",
-  );
-
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (apiKey === undefined || apiKey.length === 0) {
     throw new Error("OPENAI_API_KEY is required when RUN_ONLINE_EVAL=true");
   }
 
+  const config = await loadEvaluationConfig();
   const scenarios = await loadScenarios();
+
+  if (scenarios.length > config.online.maxScenarios) {
+    throw new Error(
+      `The online evaluation has ${scenarios.length} scenarios but the committed budget allows ${config.online.maxScenarios}. Raise maxScenarios in tests/evals/eval-config.json once the extra spend is intended.`,
+    );
+  }
+
+  const models = resolveOpenAIModelSelection(process.env);
+  const spendMeter = new SpendMeter(config.online.spend.pricing);
+
+  spendMeter.assertPricingExistsFor([models.plannerModel, models.replyModel]);
+
+  console.log(
+    `Evaluating ${scenarios.length} scenarios with planner model ${models.plannerModel}, capped at $${config.online.spend.maxUsd.toFixed(2)}`,
+  );
+
   const catalogClient = new CatalogClient(fetch, "https://dummyjson.com", 5000);
   const catalogResolver = new CatalogResolver(
     catalogClient,
@@ -156,20 +160,23 @@ async function main(): Promise<void> {
   );
   const { OpenAIModelClient } =
     await import("../src/domain/chat/openai-model-client");
-  const models = resolveOpenAIModelSelection(process.env);
-  console.log(
-    `Evaluating with planner model ${models.plannerModel} and reply model ${models.replyModel}`,
-  );
   const modelClient = new OpenAIModelClient({
     apiKey,
+    fetch: spendMeter.createFetch(),
     maxOutputTokens: 2000,
     maxRetries: 1,
     models,
     timeoutMs: 20000,
   });
   const results: EvaluationCaseResult[] = [];
+  let abortReason: string | null = null;
 
   for (const scenario of scenarios) {
+    if (spendMeter.snapshot.totalUsd >= config.online.spend.maxUsd) {
+      abortReason = `run aborted: spend cap $${config.online.spend.maxUsd.toFixed(2)} reached after ${results.length}/${scenarios.length} scenarios ($${spendMeter.snapshot.totalUsd.toFixed(4)} spent)`;
+      break;
+    }
+
     const result = await evaluateScenario(
       scenario,
       modelClient,
@@ -180,28 +187,47 @@ async function main(): Promise<void> {
     console.log(JSON.stringify(result));
   }
 
-  const report: EvaluationReport = {
-    generatedAt: new Date().toISOString(),
+  abortReason ??= findMeteringFailure(spendMeter.snapshot);
+
+  const gate = new EvaluationGate(config.online, "online");
+  const gateOutcome = gate.evaluate({
+    abortReason,
     results,
-    summary: {
-      failed: results.filter((result) => result.failures.length > 0).length,
-      passed: results.filter((result) => result.failures.length === 0).length,
-      total: results.length,
-    },
-  };
-  const reportPath = await writeReport(report);
+    scenarioNames: scenarios.map((scenario) => scenario.name),
+  });
+  const report = createEvaluationReport(results, gateOutcome, {
+    requestCount: spendMeter.snapshot.requestCount,
+    totalUsd: spendMeter.snapshot.totalUsd,
+  });
+  const reportPath = await writeEvaluationReport("online", report);
 
   console.log(`Online evaluation report: ${reportPath}`);
+  console.log(
+    `Spent $${spendMeter.snapshot.totalUsd.toFixed(4)} across ${spendMeter.snapshot.requestCount} requests`,
+  );
   console.log(JSON.stringify(report.summary));
 
-  if (report.summary.failed > 0) {
+  if (gateOutcome.blockingReasons.length > 0) {
     throw new Error(
-      results
-        .filter((result) => result.failures.length > 0)
-        .map((result) => `${result.name}: ${result.failures.join(", ")}`)
-        .join("\n"),
+      `Online evaluation gate failed:\n${gateOutcome.blockingReasons
+        .map((reason) => `  - ${reason}`)
+        .join("\n")}`,
     );
   }
+}
+
+// Metering that silently reports $0 is worse than no cap at all, so a run that
+// could not account for every billed call fails rather than trusting the total.
+function findMeteringFailure(snapshot: SpendSnapshot): string | null {
+  if (snapshot.unpricedModels.length > 0) {
+    return `run aborted: no committed pricing for ${snapshot.unpricedModels.join(", ")}, so spend could not be metered`;
+  }
+
+  if (snapshot.usageMissingCount > 0) {
+    return `run aborted: ${snapshot.usageMissingCount} response(s) reported no token usage, so spend could not be metered`;
+  }
+
+  return null;
 }
 
 void main().catch((error: unknown) => {
