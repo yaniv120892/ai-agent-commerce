@@ -22,13 +22,13 @@ Copy the environment template, set `OPENAI_API_KEY` in `.env`, and run the appli
 
 ```bash
 cp .env.example .env
-docker compose up -d database
+docker compose up -d
 npm install
 npm run db:migrate
 npm run dev
 ```
 
-Open the URL printed by Next.js, normally `http://localhost:3000`. `npm run db:migrate` uses the local `DATABASE_URL` from `.env` and applies the committed Prisma migrations. The Compose service publishes PostgreSQL on `localhost:5432` and initializes an isolated `ai_commerce_test` database for integration and E2E tests.
+Open the URL printed by Next.js, normally `http://localhost:3000`. `npm run db:migrate` uses the local `DATABASE_URL` from `.env` and applies the committed Prisma migrations. The Compose stack publishes PostgreSQL on `localhost:5432` (initializing an isolated `ai_commerce_test` database for integration and E2E tests) and Redis on `localhost:6379`, used to cache DummyJSON catalog responses.
 
 The database is the persistence boundary:
 
@@ -104,6 +104,8 @@ Responses are deliberately non-streaming. A pending assistant state is clearer t
 ## Retrieval policy
 
 The catalog origin is fixed to `https://dummyjson.com`; `.env` cannot redirect it to another host. All upstream requests are read-only `GET`s and JSON is schema-validated. `DUMMYJSON_TIMEOUT_MS` configures the request timeout and defaults to 5,000 milliseconds; network or upstream-5xx failures get at most one retry.
+
+Successful, schema-validated catalog responses are cached in Redis so overlapping requests (e.g. many sessions searching "phones") don't each re-fetch DummyJSON. `CATALOG_CACHE_LIST_TTL_SECONDS` (default 300) covers search/category/full-list results; `CATALOG_CACHE_DETAIL_TTL_SECONDS` (default 1800) covers single-product lookups, which change less often. Errors are never cached. Because DummyJSON is a static demo dataset, a fixed TTL is sufficient and there is no active invalidation path; a live catalog source would need a change-notification event to invalidate affected keys. If Redis itself is unreachable, catalog requests fall through to DummyJSON directly rather than failing.
 
 | Request kind    | DummyJSON endpoint and server policy                                                      |
 | --------------- | ----------------------------------------------------------------------------------------- |
