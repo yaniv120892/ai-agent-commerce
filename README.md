@@ -2,7 +2,7 @@
 
 AI Commerce Copilot is a local, single-user shopping chat. It turns a request into a constrained product-retrieval plan, retrieves products from DummyJSON, ranks them on the server, and saves both the conversation and the rendered product-card snapshots in PostgreSQL.
 
-It is deliberately an interview-sized system: the model interprets language and writes a grounded reply; application code owns catalog access, filtering, ranking, persistence, and card data.
+The model interprets language and writes a grounded reply; application code owns catalog access, filtering, ranking, persistence, and card data.
 
 ## README acceptance checklist
 
@@ -79,7 +79,7 @@ The choices are intentionally plain:
 | LangChain, LangGraph, or Mastra         | A workflow framework would add abstraction around a single read-only catalog tool and conceal the request-to-recommendation flow rather than simplify it.                         |
 | SQLite                                  | PostgreSQL in Docker Compose better demonstrates a reproducible server-owned relational persistence boundary, migrations, and a separate test database.                           |
 | Raw `node-postgres` queries             | Hand-maintained SQL mapping and migrations would be more verbose. Prisma supplies generated TypeScript types and reviewed migrations while keeping repository ownership explicit. |
-| Hosted database                         | A hosted service would require authentication, authorization, tenancy, privacy, and network-resilience work outside this local assignment.                                        |
+| Hosted database                         | A hosted service would require authentication, authorization, tenancy, privacy, and network-resilience work outside this local project's scope.                                        |
 
 The model/data boundary is strict. The planner emits a validated retrieval plan; it does not choose hosts, HTTP methods, paths, headers, or arbitrary URLs. The server is the only component allowed to retrieve catalog data, rank candidates, write the database, or construct product cards. The reply model receives only the selected trusted card data. Cards render from saved snapshot DTOs, never by parsing model prose, so past cards preserve the title, description, price, category, rating, and image that were actually recommended. They are not live price or availability guarantees.
 
