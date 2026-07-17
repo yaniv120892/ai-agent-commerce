@@ -19,6 +19,7 @@
 - Build non-streaming v1 replies. Do not introduce cross-conversation memory, card freshness checks, auth, cart, checkout, or deletion controls.
 - Treat product-card snapshots as historical recommendations. Do not overwrite historic cards with live catalog values.
 - Use `prisma/schema.prisma` as the database-model source of truth, commit every Prisma Migrate migration, and access Prisma Client only through `ConversationRepository`.
+- Treat this as an unshipped local application: current migrations must support fresh installs and test databases. After user data exists, every schema migration must include a safe data backfill or a typed recovery path for non-inferable legacy relationships.
 - Run `npm run prettier`, `npm run lint`, `npm run build`, and `npm run test` before every commit after Task 1.
 
 ---
@@ -60,7 +61,7 @@
 - Test: `src/lib/env.test.ts`
 
 **Interfaces:**
-- Produces `environment` from `src/lib/env.ts`, containing `databaseUrl`, `openAiApiKey`, `dummyJsonBaseUrl`, `dummyJsonTimeoutMs`, and `port`.
+- Produces `environment` from `src/lib/env.ts`, containing `databaseUrl`, `openAiApiKey`, `dummyJsonBaseUrl`, and `dummyJsonTimeoutMs`.
 - Produces the `prisma: PrismaClient` singleton for repository construction.
 
 - [ ] **Step 1: Initialize the Next.js project and dependencies**
@@ -562,7 +563,7 @@ Expected: FAIL until the test server, fake-dependency seam, and UI are complete.
 
 - [ ] **Step 3: Implement the test-only dependency seam**
 
-Create a server-side dependency factory that selects deterministic fake `ModelClient` and `CatalogClient` implementations only when `E2E_MODE=true` and Next.js is running in development mode. Production configuration must reject `E2E_MODE=true`. The Playwright web server starts `npm run dev` with that explicit flag; the fakes return fixture plans/products, enabling E2E tests to assert UI behavior without real OpenAI or DummyJSON calls.
+Create a server-side dependency factory that selects deterministic fake `ModelClient` and `CatalogClient` implementations only when `E2E_MODE=true` and Next.js is running in development mode. Production configuration must reject `E2E_MODE=true`. The Playwright web server starts `npm run dev` with `E2E_MODE=true` and `OPENAI_API_KEY=test-key`; the fakes return fixture plans/products, enabling E2E tests to assert UI behavior without real OpenAI or DummyJSON calls.
 
 - [ ] **Step 4: Add offline evaluation**
 
