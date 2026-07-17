@@ -67,6 +67,7 @@ describe("ConversationRepository", () => {
       content: "These two chairs fit your request.",
       conversationId: conversation.id,
       messageId: assistantMessage.id,
+      retrievalAnchorMessage: "I need a desk chair.",
       productCards: [
         {
           category: "furniture",

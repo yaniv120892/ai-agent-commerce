@@ -19,8 +19,15 @@ export function deriveActiveContext(
   const categories = new Set(
     lastResolvedMessage.productCards.map((productCard) => productCard.category),
   );
+  const lastAnchorMessage = [...history]
+    .reverse()
+    .find(
+      (message) =>
+        message.role === "assistant" && message.retrievalAnchorMessage !== null,
+    );
 
   return {
     categorySlug: categories.size === 1 ? [...categories][0] : null,
+    lastResolvedUserMessage: lastAnchorMessage?.retrievalAnchorMessage ?? null,
   };
 }

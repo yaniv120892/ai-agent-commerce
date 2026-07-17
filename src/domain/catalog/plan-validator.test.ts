@@ -12,6 +12,7 @@ function createPlan(overrides: Partial<RetrievalPlan> = {}): RetrievalPlan {
     minRating: null,
     inStock: null,
     sort: "relevance",
+    isContinuation: false,
     referencedProductIds: [],
     assistantMessage: null,
     ...overrides,
@@ -170,4 +171,50 @@ describe("PlanValidator", () => {
       createValidator().validate(createPlan({ minRating: 9 }), []),
     ).toThrowError(expect.objectContaining({ code: "INVALID_RETRIEVAL_PLAN" }));
   });
+
+  it("accepts a continuation search plan", () => {
+    const validatedPlan = createValidator().validate(
+      createPlan({ isContinuation: true }),
+      [],
+    );
+
+    expect(validatedPlan).toMatchObject({
+      isContinuation: true,
+      validated: true,
+    });
+  });
+
+  it.each(["product_detail", "compare", "clarify", "unsupported"] as const)(
+    "rejects a continuation flag on a %s plan",
+    (intent) => {
+      const basePlan =
+        intent === "product_detail"
+          ? createPlan({
+              intent,
+              isContinuation: true,
+              referencedProductIds: [1],
+              searchTerms: [],
+            })
+          : intent === "compare"
+            ? createPlan({
+                intent,
+                isContinuation: true,
+                referencedProductIds: [1, 2],
+                searchTerms: [],
+              })
+            : createPlan({
+                assistantMessage: "Which one?",
+                intent,
+                isContinuation: true,
+                searchTerms: [],
+              });
+      const priorProductIds = intent === "compare" ? [1, 2] : [1];
+
+      expect(() =>
+        createValidator().validate(basePlan, priorProductIds),
+      ).toThrowError(
+        expect.objectContaining({ code: "INVALID_RETRIEVAL_PLAN" }),
+      );
+    },
+  );
 });

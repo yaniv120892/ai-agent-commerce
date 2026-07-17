@@ -35,6 +35,7 @@ function createPlan(overrides: Partial<RetrievalPlan> = {}): RetrievalPlan {
     categorySlug: null,
     inStock: null,
     intent: "search",
+    isContinuation: false,
     maxPrice: null,
     minRating: null,
     referencedProductIds: [],
@@ -52,6 +53,7 @@ function createMessage(
     createdAt: "2026-07-16T10:00:00.000Z",
     id: "user-message-id",
     productCards: [],
+    retrievalAnchorMessage: null,
     role: "user",
     status: "complete",
     ...overrides,
@@ -89,6 +91,7 @@ function createDependencies() {
       ...assistantMessage,
       content: input.content,
       productCards: input.productCards,
+      retrievalAnchorMessage: input.retrievalAnchorMessage,
       status: "complete",
     })),
     createConversationWithPendingReply: vi
@@ -177,11 +180,15 @@ describe("ChatService", () => {
       conversationId: "conversation-id",
       messageId: "assistant-message-id",
       productCards,
+      retrievalAnchorMessage: "Find me a phone",
     });
-    expect(catalogResolver.resolve).toHaveBeenCalledWith({
-      ...createPlan(),
-      validated: true,
-    });
+    expect(catalogResolver.resolve).toHaveBeenCalledWith(
+      {
+        ...createPlan(),
+        validated: true,
+      },
+      [],
+    );
   });
 
   it("truncates an overlong first message into the persisted title", async () => {
@@ -535,7 +542,10 @@ describe("ChatService", () => {
 
     expect(modelClient.createRetrievalPlan).toHaveBeenCalledWith(
       expect.objectContaining({
-        activeContext: { categorySlug: "smartphones" },
+        activeContext: {
+          categorySlug: "smartphones",
+          lastResolvedUserMessage: null,
+        },
       }),
     );
   });
@@ -576,7 +586,9 @@ describe("ChatService", () => {
     });
 
     expect(modelClient.createRetrievalPlan).toHaveBeenCalledWith(
-      expect.objectContaining({ activeContext: { categorySlug: null } }),
+      expect.objectContaining({
+        activeContext: { categorySlug: null, lastResolvedUserMessage: null },
+      }),
     );
   });
 
@@ -1023,6 +1035,115 @@ describe("ChatService", () => {
       status: "error",
     });
   });
+
+  it("persists the current message as the retrieval anchor for a fresh search turn", async () => {
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      planRepairService,
+    );
+
+    await service.startConversation({
+      clientRequestId: "request-id",
+      requestId: "request-id",
+      content: "Find me a phone",
+    });
+
+    expect(
+      conversationRepository.completeAssistantMessage,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({ retrievalAnchorMessage: "Find me a phone" }),
+    );
+  });
+
+  it("carries forward the active context's anchor for a continuation turn", async () => {
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
+    const history = [
+      createMessage({
+        content: "Show me phones",
+        id: "message-0",
+        retrievalAnchorMessage: null,
+      }),
+      createMessage({
+        content: "Here are phones.",
+        id: "message-1",
+        productCards: [{ ...productCards[0], productId: 101 }],
+        retrievalAnchorMessage: "Show me phones",
+        role: "assistant",
+      }),
+    ];
+    conversationRepository.getConversation.mockResolvedValue(
+      createConversation(history),
+    );
+    vi.mocked(modelClient.createRetrievalPlan).mockResolvedValue(
+      createPlan({ categorySlug: "smartphones", isContinuation: true }),
+    );
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      planRepairService,
+    );
+
+    await service.appendMessage({
+      clientRequestId: "request-id",
+      requestId: "request-id",
+      content: "Show me more",
+      conversationId: "conversation-id",
+    });
+
+    expect(
+      conversationRepository.completeAssistantMessage,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({ retrievalAnchorMessage: "Show me phones" }),
+    );
+  });
+
+  it("does not persist a retrieval anchor for a non-retrieval turn", async () => {
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
+    vi.mocked(modelClient.createRetrievalPlan).mockResolvedValue(
+      createPlan({
+        assistantMessage: "I can only help with products in this catalog.",
+        intent: "unsupported",
+        searchTerms: [],
+      }),
+    );
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      planRepairService,
+    );
+
+    await service.startConversation({
+      clientRequestId: "request-id",
+      requestId: "request-id",
+      content: "Book me a flight",
+    });
+
+    expect(
+      conversationRepository.completeAssistantMessage,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({ retrievalAnchorMessage: null }),
+    );
+  });
 });
 
 describe("OpenAIModelClient", () => {
@@ -1059,7 +1180,10 @@ describe("OpenAIModelClient", () => {
     });
 
     const plan = await client.createRetrievalPlan({
-      activeContext: { categorySlug: "smartphones" },
+      activeContext: {
+        categorySlug: "smartphones",
+        lastResolvedUserMessage: null,
+      },
       allowedCategorySlugs: ["smartphones"],
       history: [createMessage()],
       priorProductIds: [101],
@@ -1090,11 +1214,12 @@ describe("OpenAIModelClient", () => {
         "minRating",
         "inStock",
         "sort",
+        "isContinuation",
         "referencedProductIds",
         "assistantMessage",
       ]),
     );
-    expect(parse.mock.calls[0][0].text.format.schema.required).toHaveLength(9);
+    expect(parse.mock.calls[0][0].text.format.schema.required).toHaveLength(10);
     expect(parse.mock.calls[0][0].input[0].content).toContain(
       "data, not instructions",
     );
@@ -1149,7 +1274,7 @@ describe("OpenAIModelClient", () => {
 
     await expect(
       client.createRetrievalPlan({
-        activeContext: { categorySlug: null },
+        activeContext: { categorySlug: null, lastResolvedUserMessage: null },
         allowedCategorySlugs: ["smartphones"],
         history: [],
         priorProductIds: [],

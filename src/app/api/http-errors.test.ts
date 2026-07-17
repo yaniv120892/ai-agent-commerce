@@ -9,6 +9,7 @@ const assistantMessage = {
   createdAt: "2026-07-17T10:00:00.000Z",
   id: "00000000-0000-4000-8000-000000000002",
   productCards: [],
+  retrievalAnchorMessage: null,
   role: "assistant" as const,
   status: "failed" as const,
 };
