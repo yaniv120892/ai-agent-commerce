@@ -8,7 +8,9 @@ if (!process.env.TEST_DATABASE_URL) {
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
 
 const { prisma } = await import("../../src/lib/db/prisma");
+const { redisClient } = await import("../../src/lib/redis/redis-client");
 
 afterAll(async () => {
   await prisma.$disconnect();
+  await redisClient.quit();
 });

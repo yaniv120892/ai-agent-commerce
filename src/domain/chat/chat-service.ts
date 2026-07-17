@@ -10,6 +10,7 @@ import type {
 } from "../conversations/types";
 
 import type {
+  ActiveRetrievalContext,
   AppendMessageInput,
   ChatErrorCode,
   ChatResponse,
@@ -17,6 +18,7 @@ import type {
   RetrievalPlan,
   StartConversationInput,
 } from "./types";
+import { deriveActiveContext } from "./active-context";
 import {
   ReplyCompletionCache,
   type ReplyCompletion,
@@ -36,6 +38,7 @@ type CatalogResolution = Pick<CatalogResolver, "resolve">;
 type MessageContext = {
   history: PersistedMessage[];
   priorProductIds: number[];
+  activeContext: ActiveRetrievalContext | null;
 };
 
 export class ChatService {
@@ -195,6 +198,7 @@ export class ChatService {
 
     try {
       plan = await this.modelClient.createRetrievalPlan({
+        activeContext: messageContext.activeContext,
         allowedCategorySlugs: this.allowedCategorySlugs,
         history: messageContext.history,
         priorProductIds: messageContext.priorProductIds,
@@ -376,6 +380,7 @@ export class ChatService {
       .slice(-12);
 
     return {
+      activeContext: deriveActiveContext(history),
       history,
       priorProductIds: [
         ...new Set(
