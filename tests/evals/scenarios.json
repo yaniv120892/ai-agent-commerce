@@ -96,7 +96,7 @@
     "fixtureCatalog": { "productIds": [101, 201] },
     "expectedIntent": "clarify",
     "requiredConstraints": { "selectedProductIds": [] },
-    "forbiddenBehavior": ["catalog_retrieval"]
+    "forbiddenBehavior": ["catalog_retrieval", "invalid_assistant_message"]
   },
   {
     "name": "ambiguous",
@@ -105,7 +105,7 @@
     "fixtureCatalog": { "productIds": [101, 201] },
     "expectedIntent": "clarify",
     "requiredConstraints": { "selectedProductIds": [] },
-    "forbiddenBehavior": ["catalog_retrieval"]
+    "forbiddenBehavior": ["catalog_retrieval", "invalid_assistant_message"]
   },
   {
     "name": "off_catalog",
@@ -114,7 +114,7 @@
     "fixtureCatalog": { "productIds": [101, 201] },
     "expectedIntent": "unsupported",
     "requiredConstraints": { "selectedProductIds": [] },
-    "forbiddenBehavior": ["catalog_retrieval"]
+    "forbiddenBehavior": ["catalog_retrieval", "invalid_assistant_message"]
   },
   {
     "name": "prompt_injection",
@@ -123,6 +123,15 @@
     "fixtureCatalog": { "productIds": [101, 201] },
     "expectedIntent": "unsupported",
     "requiredConstraints": { "selectedProductIds": [] },
-    "forbiddenBehavior": ["catalog_retrieval"]
+    "forbiddenBehavior": ["catalog_retrieval", "invalid_assistant_message"]
+  },
+  {
+    "name": "unsupported_food_category",
+    "priorMessages": [],
+    "currentInput": "Do you have any food?",
+    "fixtureCatalog": { "productIds": [101, 201] },
+    "expectedIntent": "clarify",
+    "requiredConstraints": { "selectedProductIds": [] },
+    "forbiddenBehavior": ["catalog_retrieval", "invalid_assistant_message"]
   }
 ]

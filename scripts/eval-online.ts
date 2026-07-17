@@ -92,6 +92,7 @@ async function evaluateScenario(
         // resolver returns already came from the live catalog client, so
         // "grounded" is defined as "the resolver actually returned it".
         new Set(selectedProductIds),
+        plan.assistantMessage,
       ),
     );
   } catch (error) {
