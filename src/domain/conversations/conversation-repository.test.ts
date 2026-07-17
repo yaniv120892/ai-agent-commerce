@@ -167,6 +167,7 @@ describe("ConversationRepository", () => {
       conversationId: "conversation-id",
       messageId: "assistant-message-id",
       content: "Here are two options.",
+      retrievalAnchorMessage: "Show me two options",
       productCards: [
         {
           productId: 101,
@@ -193,6 +194,7 @@ describe("ConversationRepository", () => {
     expect(message.updateMany).toHaveBeenCalledWith({
       data: {
         content: "Here are two options.",
+        retrievalAnchorMessage: "Show me two options",
         status: "complete",
       },
       where: {

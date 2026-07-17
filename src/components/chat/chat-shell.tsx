@@ -120,6 +120,7 @@ function createLocalUserMessage(
     createdAt: new Date().toISOString(),
     id: requestId,
     productCards: [],
+    retrievalAnchorMessage: null,
     role: "user",
     status: "complete",
   };
@@ -131,6 +132,7 @@ function createPendingAssistantMessage(requestId: string): PersistedMessage {
     createdAt: new Date().toISOString(),
     id: `${requestId}-pending`,
     productCards: [],
+    retrievalAnchorMessage: null,
     role: "assistant",
     status: "pending",
   };

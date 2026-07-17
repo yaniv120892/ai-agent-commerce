@@ -686,6 +686,7 @@ export const MessageScalarFieldEnum = {
   role: 'role',
   content: 'content',
   status: 'status',
+  retrievalAnchorMessage: 'retrievalAnchorMessage',
   createdAt: 'createdAt'
 } as const
 

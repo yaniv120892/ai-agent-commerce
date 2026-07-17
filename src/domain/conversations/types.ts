@@ -18,6 +18,7 @@ export type PersistedMessage = {
   status: MessageStatus;
   createdAt: string;
   productCards: ProductCardSnapshot[];
+  retrievalAnchorMessage: string | null;
 };
 
 export type PersistedConversation = {

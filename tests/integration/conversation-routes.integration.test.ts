@@ -36,6 +36,7 @@ const retrievalPlan: RetrievalPlan = {
   categorySlug: null,
   inStock: null,
   intent: "search",
+  isContinuation: false,
   maxPrice: null,
   minRating: null,
   referencedProductIds: [],
@@ -234,6 +235,99 @@ describe("conversation routes", () => {
       conversationId: createPayload.conversationId,
       status: "complete",
     });
+  });
+
+  it("carries a continuation's replay anchor across more than one consecutive 'more' request", async () => {
+    const firstCards: ProductCardSnapshot[] = [
+      { ...productCards[0], productId: 101 },
+    ];
+    const secondCards: ProductCardSnapshot[] = [
+      { ...productCards[0], productId: 102 },
+    ];
+    const thirdCards: ProductCardSnapshot[] = [
+      { ...productCards[0], productId: 103 },
+    ];
+    const continuationPlan: RetrievalPlan = {
+      ...retrievalPlan,
+      categorySlug: "smartphones",
+      intent: "browse_category",
+      isContinuation: true,
+      searchTerms: [],
+    };
+
+    vi.mocked(modelClient.createRetrievalPlan)
+      .mockResolvedValueOnce(retrievalPlan)
+      .mockResolvedValueOnce(continuationPlan)
+      .mockResolvedValueOnce(continuationPlan);
+    catalogResolver.resolve
+      .mockResolvedValueOnce({ productCards: firstCards })
+      .mockResolvedValueOnce({ productCards: secondCards })
+      .mockResolvedValueOnce({ productCards: thirdCards });
+
+    const createResponse = await createConversation(
+      new Request("http://localhost/api/conversations", {
+        body: JSON.stringify({
+          clientRequestId: "00000000-0000-4000-8000-000000000110",
+          content: "Show me a phone.",
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      }),
+    );
+    const createPayload = await createResponse.json();
+
+    const secondResponse = await appendMessage(
+      new Request("http://localhost/api/conversations/messages", {
+        body: JSON.stringify({
+          clientRequestId: "00000000-0000-4000-8000-000000000111",
+          content: "Show me more",
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      }),
+      {
+        params: Promise.resolve({
+          conversationId: createPayload.conversationId,
+        }),
+      },
+    );
+    const secondPayload = await secondResponse.json();
+
+    const thirdResponse = await appendMessage(
+      new Request("http://localhost/api/conversations/messages", {
+        body: JSON.stringify({
+          clientRequestId: "00000000-0000-4000-8000-000000000112",
+          content: "Show me more",
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      }),
+      {
+        params: Promise.resolve({
+          conversationId: createPayload.conversationId,
+        }),
+      },
+    );
+    const thirdPayload = await thirdResponse.json();
+
+    expect(
+      secondPayload.assistantMessage.productCards.map(
+        (card: ProductCardSnapshot) => card.productId,
+      ),
+    ).toEqual([102]);
+    expect(
+      thirdPayload.assistantMessage.productCards.map(
+        (card: ProductCardSnapshot) => card.productId,
+      ),
+    ).toEqual([103]);
+    expect(modelClient.createRetrievalPlan).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        activeContext: expect.objectContaining({
+          lastResolvedUserMessage: "Show me a phone.",
+        }),
+      }),
+    );
   });
 
   it("returns 404 when appending to an unknown conversation", async () => {
