@@ -54,7 +54,11 @@ export type ChatUiAction =
       type: "complete";
       conversation: PersistedConversation;
     }
-  | { type: "error"; error: ChatError }
+  | {
+      type: "error";
+      error: ChatError;
+      recoveryConversation?: PersistedConversation;
+    }
   | { type: "unknownConversation" }
   | { type: "newConversation" }
   | {

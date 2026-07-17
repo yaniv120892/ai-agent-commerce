@@ -118,6 +118,57 @@ describe("ChatShell", () => {
     ).toBeVisible();
   });
 
+  it("retries an initial persistence failure through the created conversation", async () => {
+    const createdConversationId = "00000000-0000-4000-8000-000000000009";
+    const postUrls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, options?: RequestInit) => {
+        if (options?.method === "POST") {
+          postUrls.push(url);
+
+          if (postUrls.length === 1) {
+            return Promise.resolve(
+              jsonResponse(
+                {
+                  conversationId: createdConversationId,
+                  error: {
+                    code: "PERSISTENCE_UNAVAILABLE",
+                    message:
+                      "Conversation storage is unavailable. Please retry.",
+                  },
+                },
+                503,
+              ),
+            );
+          }
+
+          return Promise.resolve(
+            jsonResponse({
+              assistantMessage: createAssistantMessage("Recovered response."),
+              conversationId: createdConversationId,
+              status: "complete",
+            }),
+          );
+        }
+
+        return Promise.resolve(jsonResponse([]));
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<ChatShell initialConversation={null} />);
+    await user.type(screen.getByLabelText("Message"), "Find me a phone");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await user.click(await screen.findByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByText("Recovered response.")).toBeVisible();
+    expect(postUrls).toEqual([
+      "/api/conversations",
+      `/api/conversations/${createdConversationId}/messages`,
+    ]);
+  });
+
   it("displays a submitted user message in an existing conversation", async () => {
     vi.stubGlobal(
       "fetch",

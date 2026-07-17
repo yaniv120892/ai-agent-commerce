@@ -16,6 +16,10 @@ import type {
   RetrievalPlan,
   StartConversationInput,
 } from "./types";
+import {
+  ReplyCompletionCache,
+  type ReplyCompletion,
+} from "./reply-completion-cache";
 
 type ConversationStore = Pick<
   ConversationRepository,
@@ -39,6 +43,7 @@ export class ChatService {
     private readonly catalogResolver: CatalogResolution,
     private readonly modelClient: ModelClient,
     private readonly allowedCategorySlugs: string[],
+    private readonly replyCompletionCache = new ReplyCompletionCache(),
   ) {}
 
   public async startConversation(
@@ -148,6 +153,20 @@ export class ChatService {
     }
 
     const { assistantMessage } = appendedReply;
+
+    const cachedCompletion = this.replyCompletionCache.get(
+      input.conversationId,
+      assistantMessage.id,
+    );
+
+    if (assistantMessage.status === "pending" && cachedCompletion !== null) {
+      return this.completeAssistantMessage(
+        input.conversationId,
+        assistantMessage,
+        cachedCompletion.content,
+        cachedCompletion.productCards,
+      );
+    }
 
     if (appendedReply.state === "existing") {
       return this.returnExistingAssistantReply(
@@ -295,6 +314,7 @@ export class ChatService {
           messageId: assistantMessage.id,
           productCards,
         });
+      this.replyCompletionCache.delete(conversationId, assistantMessage.id);
 
       return {
         assistantMessage: completedAssistantMessage,
@@ -302,6 +322,11 @@ export class ChatService {
         status: "complete",
       };
     } catch {
+      this.replyCompletionCache.set(conversationId, assistantMessage.id, {
+        content,
+        productCards,
+      });
+
       return this.failAssistantMessage(
         "PERSISTENCE_UNAVAILABLE",
         "Conversation storage is unavailable. Please retry.",

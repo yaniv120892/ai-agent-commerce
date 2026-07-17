@@ -4,6 +4,7 @@ import { CatalogClient } from "@/domain/catalog/catalog-client";
 import { CatalogResolver } from "@/domain/catalog/catalog-resolver";
 import { ChatService } from "@/domain/chat/chat-service";
 import { OpenAIModelClient } from "@/domain/chat/openai-model-client";
+import { ReplyCompletionCache } from "@/domain/chat/reply-completion-cache";
 import {
   DeterministicModelClient,
   FixtureCatalogClient,
@@ -44,6 +45,8 @@ type ConversationApiDependencies = {
   conversationRepository: ConversationRepository;
 };
 
+const replyCompletionCache = new ReplyCompletionCache();
+
 export function getConversationApiDependencies(): ConversationApiDependencies {
   const conversationRepository = new ConversationRepository(prisma);
   const catalogClient = environment.e2eMode
@@ -67,6 +70,7 @@ export function getConversationApiDependencies(): ConversationApiDependencies {
       catalogResolver,
       modelClient,
       allowedCategorySlugs,
+      replyCompletionCache,
     ),
     conversationRepository,
   };
