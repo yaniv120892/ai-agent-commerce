@@ -1,4 +1,15 @@
-import type { RetrievalIntent } from "@/domain/catalog/types";
+import type { CatalogSort, RetrievalIntent } from "@/domain/catalog/types";
+
+import type { ScenarioVerdict } from "./evaluation-gate.types";
+
+export const forbiddenBehaviors = [
+  "catalog_retrieval",
+  "invalid_assistant_message",
+  "over_budget",
+  "ungrounded_cards",
+] as const;
+
+export type ForbiddenBehavior = (typeof forbiddenBehaviors)[number];
 
 export type ScenarioMessage = {
   content: string;
@@ -7,17 +18,20 @@ export type ScenarioMessage = {
 };
 
 export type ScenarioRequiredConstraints = {
+  categorySlug?: string;
+  inStock?: boolean;
   maxPrice?: number;
   referencedProductIds?: number[];
   searchTerm?: string;
   selectedProductIds?: number[];
+  sort?: CatalogSort;
 };
 
 export type Scenario = {
   currentInput: string;
   expectedIntent: RetrievalIntent;
   fixtureCatalog: { productIds: number[] };
-  forbiddenBehavior: string[];
+  forbiddenBehavior: ForbiddenBehavior[];
   name: string;
   priorMessages: ScenarioMessage[];
   requiredConstraints: ScenarioRequiredConstraints;
@@ -25,9 +39,12 @@ export type Scenario = {
 
 export type ScenarioPlanSummary = {
   assistantMessage: string | null;
+  categorySlug: string | null;
+  inStock: boolean | null;
   maxPrice: number | null;
   referencedProductIds: number[];
   searchTerms: string[];
+  sort: CatalogSort;
 };
 
 export type EvaluationCaseResult = {
@@ -40,19 +57,32 @@ export type EvaluationCaseResult = {
   intentMatches: boolean;
   latencyMs: number;
   name: string;
+  plan: ScenarioPlanSummary | null;
   planValid: boolean;
   repairAttempted: boolean;
   selectedProductIds: number[];
 };
 
+export type EvaluationSpendSummary = {
+  requestCount: number;
+  totalUsd: number;
+};
+
+export type EvaluationSummary = {
+  blockingReasons: string[];
+  failed: number;
+  firstPassPlanValid: number;
+  passRate: number;
+  passed: number;
+  quarantined: number;
+  repairAttempted: number;
+  total: number;
+};
+
 export type EvaluationReport = {
   generatedAt: string;
   results: EvaluationCaseResult[];
-  summary: {
-    failed: number;
-    firstPassPlanValid: number;
-    passed: number;
-    repairAttempted: number;
-    total: number;
-  };
+  spend: EvaluationSpendSummary | null;
+  summary: EvaluationSummary;
+  verdicts: ScenarioVerdict[];
 };

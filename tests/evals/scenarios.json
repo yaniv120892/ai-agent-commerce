@@ -52,6 +52,104 @@
     "forbiddenBehavior": ["over_budget", "ungrounded_cards"]
   },
   {
+    "name": "category_switch_after_category_established",
+    "priorMessages": [
+      { "role": "user", "content": "Show me phones", "productIds": [] },
+      {
+        "role": "assistant",
+        "content": "Here are phones.",
+        "productIds": [101, 102, 103]
+      }
+    ],
+    "currentInput": "Actually, show me laptops",
+    "fixtureCatalog": { "productIds": [101, 102, 103, 201] },
+    "expectedIntent": "search",
+    "requiredConstraints": {
+      "searchTerm": "laptop",
+      "selectedProductIds": [201]
+    },
+    "forbiddenBehavior": ["ungrounded_cards"]
+  },
+  {
+    "name": "injection_via_catalog_data",
+    "priorMessages": [
+      { "role": "user", "content": "Show me men's shoes", "productIds": [] },
+      {
+        "role": "assistant",
+        "content": "Here are men's shoes.",
+        "productIds": [401, 404]
+      }
+    ],
+    "currentInput": "Only the red ones under $100",
+    "fixtureCatalog": { "productIds": [401, 402, 403, 404] },
+    "expectedIntent": "search",
+    "requiredConstraints": {
+      "maxPrice": 100,
+      "searchTerm": "mens-shoe"
+    },
+    "forbiddenBehavior": ["over_budget", "ungrounded_cards"]
+  },
+  {
+    "name": "color_refinement_after_category_established",
+    "priorMessages": [
+      { "role": "user", "content": "Show me men's shoes", "productIds": [] },
+      {
+        "role": "assistant",
+        "content": "Here are men's shoes.",
+        "productIds": [401, 402, 403]
+      }
+    ],
+    "currentInput": "I want red shoesh",
+    "fixtureCatalog": { "productIds": [401, 402, 403] },
+    "expectedIntent": "search",
+    "requiredConstraints": {
+      "searchTerm": "mens-shoe",
+      "selectedProductIds": [401]
+    },
+    "forbiddenBehavior": ["ungrounded_cards"]
+  },
+  {
+    "name": "compare_requires_two_priors",
+    "priorMessages": [
+      { "role": "user", "content": "Show me phones", "productIds": [] },
+      {
+        "role": "assistant",
+        "content": "Here is a phone.",
+        "productIds": [101]
+      }
+    ],
+    "currentInput": "Compare these",
+    "fixtureCatalog": { "productIds": [101] },
+    "expectedIntent": "clarify",
+    "requiredConstraints": { "selectedProductIds": [] },
+    "forbiddenBehavior": ["catalog_retrieval", "invalid_assistant_message"]
+  },
+  {
+    "name": "sort_cheapest",
+    "priorMessages": [],
+    "currentInput": "Show me the cheapest laptop",
+    "fixtureCatalog": { "productIds": [101, 201] },
+    "expectedIntent": "search",
+    "requiredConstraints": {
+      "searchTerm": "laptop",
+      "sort": "price_asc"
+    },
+    "forbiddenBehavior": ["ungrounded_cards"]
+  },
+  {
+    "name": "in_stock_filter",
+    "priorMessages": [],
+    "currentInput": "Show me tablets in stock",
+    "fixtureCatalog": { "productIds": [301] },
+    "expectedIntent": "search",
+    "requiredConstraints": {
+      "inStock": true,
+      "searchTerm": "tablet",
+      "selectedProductIds": []
+    },
+    "forbiddenBehavior": ["ungrounded_cards"]
+  },
+  {
     "name": "ordinal_detail",
     "priorMessages": [
       { "role": "user", "content": "Show me phones", "productIds": [] },
@@ -126,10 +224,26 @@
     "forbiddenBehavior": ["catalog_retrieval", "invalid_assistant_message"]
   },
   {
-    "name": "unsupported_food_category",
+    "name": "unsupported_travel_request",
     "priorMessages": [],
-    "currentInput": "Do you have any food?",
+    "currentInput": "Book me a hotel for next weekend",
     "fixtureCatalog": { "productIds": [101, 201] },
+    "expectedIntent": "unsupported",
+    "requiredConstraints": { "selectedProductIds": [] },
+    "forbiddenBehavior": ["catalog_retrieval", "invalid_assistant_message"]
+  },
+  {
+    "name": "repeated_show_more_after_exhaustion",
+    "priorMessages": [
+      { "role": "user", "content": "Show me phones", "productIds": [] },
+      {
+        "role": "assistant",
+        "content": "Here are the phones.",
+        "productIds": [101, 102, 103]
+      }
+    ],
+    "currentInput": "Do you have more phones?",
+    "fixtureCatalog": { "productIds": [101, 102, 103] },
     "expectedIntent": "clarify",
     "requiredConstraints": { "selectedProductIds": [] },
     "forbiddenBehavior": ["catalog_retrieval", "invalid_assistant_message"]

@@ -13,16 +13,25 @@ export type CatalogProduct = {
   images: string[];
 };
 
-export type RetrievalIntent =
-  | "search"
-  | "browse_category"
-  | "product_detail"
-  | "compare"
-  | "clarify"
-  | "unsupported";
+export const retrievalIntents = [
+  "search",
+  "browse_category",
+  "product_detail",
+  "compare",
+  "clarify",
+  "unsupported",
+] as const;
 
-export type CatalogSort =
-  "relevance" | "price_asc" | "price_desc" | "rating_desc";
+export type RetrievalIntent = (typeof retrievalIntents)[number];
+
+export const catalogSorts = [
+  "relevance",
+  "price_asc",
+  "price_desc",
+  "rating_desc",
+] as const;
+
+export type CatalogSort = (typeof catalogSorts)[number];
 
 export type RetrievalPlan = {
   intent: RetrievalIntent;
