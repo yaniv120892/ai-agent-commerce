@@ -1,3 +1,5 @@
+import { ChatShell } from "@/components/chat/chat-shell";
+
 export default function HomePage() {
-  return <main>AI Commerce Copilot</main>;
+  return <ChatShell initialConversation={null} />;
 }
