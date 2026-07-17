@@ -56,6 +56,7 @@ export type EvaluationCaseResult = {
   intentMatches: boolean;
   latencyMs: number;
   name: string;
+  plan: ScenarioPlanSummary | null;
   planValid: boolean;
   selectedProductIds: number[];
 };
