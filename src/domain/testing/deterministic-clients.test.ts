@@ -14,6 +14,7 @@ function createInput(overrides: Partial<ModelPlanInput> = {}): ModelPlanInput {
     allowedCategorySlugs: ["smartphones", "laptops", "tablets"],
     history: [],
     priorProductIds: [],
+    repairContext: null,
     userMessage: "show phones",
     ...overrides,
   };
@@ -27,6 +28,7 @@ describe("DeterministicModelClient continuation handling", () => {
       createInput({
         activeContext: {
           categorySlug: "smartphones",
+          lastAttemptedSearch: null,
           lastResolvedUserMessage: "show phones under $400",
         },
         userMessage: "show me more",
@@ -49,6 +51,7 @@ describe("DeterministicModelClient continuation handling", () => {
       createInput({
         activeContext: {
           categorySlug: "smartphones",
+          lastAttemptedSearch: null,
           lastResolvedUserMessage: "smartphones",
         },
         userMessage: "יש עוד",
@@ -72,6 +75,7 @@ describe("DeterministicModelClient continuation handling", () => {
       createInput({
         activeContext: {
           categorySlug: "smartphones",
+          lastAttemptedSearch: null,
           lastResolvedUserMessage: null,
         },
         userMessage: "show me another one",

@@ -20,6 +20,7 @@ import {
   type AppendMessageInput,
   type ChatErrorCode,
   type ChatResponse,
+  type CompletedRetrievalSummary,
   type ModelClient,
   type PlanAttemptOutcome,
   type RetrievalPlan,
@@ -205,6 +206,7 @@ export class ChatService {
         assistantMessage,
         cachedCompletion.content,
         cachedCompletion.productCards,
+        cachedCompletion.retrievalSummary,
         cachedCompletion.retrievalAnchorMessage,
       );
     }
@@ -296,6 +298,7 @@ export class ChatService {
         assistantMessage,
         plan.assistantMessage,
         [],
+        { categorySlug: null, searchTerms: [] },
         null,
       );
     }
@@ -305,6 +308,7 @@ export class ChatService {
     try {
       const result = await this.catalogResolver.resolve(
         plan,
+        allowedCategorySlugs,
         messageContext.priorProductIds,
       );
       productCards = result.productCards;
@@ -351,6 +355,7 @@ export class ChatService {
       assistantMessage,
       content,
       productCards,
+      { categorySlug: plan.categorySlug, searchTerms: plan.searchTerms },
       this.computeRetrievalAnchorMessage(plan, userMessage, messageContext),
     );
   }
@@ -404,6 +409,7 @@ export class ChatService {
     assistantMessage: PersistedMessage,
     content: string,
     productCards: ProductCardSnapshot[],
+    retrievalSummary: CompletedRetrievalSummary,
     retrievalAnchorMessage: string | null,
   ): Promise<ChatResponse> {
     try {
@@ -411,6 +417,8 @@ export class ChatService {
         await this.conversationRepository.completeAssistantMessage({
           content,
           conversationId,
+          lastCategorySlug: retrievalSummary.categorySlug,
+          lastSearchTerms: retrievalSummary.searchTerms,
           messageId: assistantMessage.id,
           productCards,
           retrievalAnchorMessage,
@@ -426,6 +434,7 @@ export class ChatService {
       this.replyCompletionCache.set(conversationId, assistantMessage.id, {
         content,
         productCards,
+        retrievalSummary,
         retrievalAnchorMessage,
       });
 
