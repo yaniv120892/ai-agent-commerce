@@ -1,11 +1,12 @@
 import type { ProductCardSnapshot } from "@/domain/conversations/types";
 
-import type {
-  CatalogClientContract,
-  CatalogProduct,
-  ResolvedCatalogResult,
-  RetrievalPlan,
-  ValidatedRetrievalPlan,
+import {
+  CatalogError,
+  type CatalogClientContract,
+  type CatalogProduct,
+  type ResolvedCatalogResult,
+  type RetrievalPlan,
+  type ValidatedRetrievalPlan,
 } from "./types";
 
 type RankedProduct = {
@@ -23,10 +24,12 @@ export class CatalogResolver {
 
   public async resolve(
     plan: ValidatedRetrievalPlan,
+    allowedCategorySlugs: string[],
   ): Promise<ResolvedCatalogResult> {
+    const allowedCategorySlugSet = new Set(allowedCategorySlugs);
     const products = await this.retrieveProducts(plan);
     const productCards = this.rankProducts(products, plan).map((product) =>
-      this.mapProductCard(product),
+      this.mapProductCard(product, allowedCategorySlugSet),
     );
 
     return {
@@ -160,7 +163,17 @@ export class CatalogResolver {
     return left.product.id - right.product.id;
   }
 
-  private mapProductCard(product: CatalogProduct): ProductCardSnapshot {
+  private mapProductCard(
+    product: CatalogProduct,
+    allowedCategorySlugs: Set<string>,
+  ): ProductCardSnapshot {
+    if (!allowedCategorySlugs.has(product.category)) {
+      throw new CatalogError(
+        "INVALID_UPSTREAM_PAYLOAD",
+        `Catalog service returned an unapproved category "${product.category}" for product ${product.id}`,
+      );
+    }
+
     return {
       category: product.category,
       imageUrl: product.thumbnail,

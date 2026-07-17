@@ -43,6 +43,7 @@ export type MessageMinAggregateOutputType = {
   role: $Enums.MessageRole | null
   content: string | null
   status: $Enums.MessageStatus | null
+  lastCategorySlug: string | null
   createdAt: Date | null
 }
 
@@ -55,6 +56,7 @@ export type MessageMaxAggregateOutputType = {
   role: $Enums.MessageRole | null
   content: string | null
   status: $Enums.MessageStatus | null
+  lastCategorySlug: string | null
   createdAt: Date | null
 }
 
@@ -67,6 +69,8 @@ export type MessageCountAggregateOutputType = {
   role: number
   content: number
   status: number
+  lastSearchTerms: number
+  lastCategorySlug: number
   createdAt: number
   _all: number
 }
@@ -89,6 +93,7 @@ export type MessageMinAggregateInputType = {
   role?: true
   content?: true
   status?: true
+  lastCategorySlug?: true
   createdAt?: true
 }
 
@@ -101,6 +106,7 @@ export type MessageMaxAggregateInputType = {
   role?: true
   content?: true
   status?: true
+  lastCategorySlug?: true
   createdAt?: true
 }
 
@@ -113,6 +119,8 @@ export type MessageCountAggregateInputType = {
   role?: true
   content?: true
   status?: true
+  lastSearchTerms?: true
+  lastCategorySlug?: true
   createdAt?: true
   _all?: true
 }
@@ -212,6 +220,8 @@ export type MessageGroupByOutputType = {
   role: $Enums.MessageRole
   content: string
   status: $Enums.MessageStatus
+  lastSearchTerms: string[]
+  lastCategorySlug: string | null
   createdAt: Date
   _count: MessageCountAggregateOutputType | null
   _avg: MessageAvgAggregateOutputType | null
@@ -247,6 +257,8 @@ export type MessageWhereInput = {
   role?: Prisma.EnumMessageRoleFilter<"Message"> | $Enums.MessageRole
   content?: Prisma.StringFilter<"Message"> | string
   status?: Prisma.EnumMessageStatusFilter<"Message"> | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.StringNullableListFilter<"Message">
+  lastCategorySlug?: Prisma.StringNullableFilter<"Message"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
   conversation?: Prisma.XOR<Prisma.ConversationScalarRelationFilter, Prisma.ConversationWhereInput>
   replyToMessage?: Prisma.XOR<Prisma.MessageNullableScalarRelationFilter, Prisma.MessageWhereInput> | null
@@ -263,6 +275,8 @@ export type MessageOrderByWithRelationInput = {
   role?: Prisma.SortOrder
   content?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  lastSearchTerms?: Prisma.SortOrder
+  lastCategorySlug?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   conversation?: Prisma.ConversationOrderByWithRelationInput
   replyToMessage?: Prisma.MessageOrderByWithRelationInput
@@ -284,6 +298,8 @@ export type MessageWhereUniqueInput = Prisma.AtLeast<{
   role?: Prisma.EnumMessageRoleFilter<"Message"> | $Enums.MessageRole
   content?: Prisma.StringFilter<"Message"> | string
   status?: Prisma.EnumMessageStatusFilter<"Message"> | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.StringNullableListFilter<"Message">
+  lastCategorySlug?: Prisma.StringNullableFilter<"Message"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
   conversation?: Prisma.XOR<Prisma.ConversationScalarRelationFilter, Prisma.ConversationWhereInput>
   replyToMessage?: Prisma.XOR<Prisma.MessageNullableScalarRelationFilter, Prisma.MessageWhereInput> | null
@@ -300,6 +316,8 @@ export type MessageOrderByWithAggregationInput = {
   role?: Prisma.SortOrder
   content?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  lastSearchTerms?: Prisma.SortOrder
+  lastCategorySlug?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.MessageCountOrderByAggregateInput
   _avg?: Prisma.MessageAvgOrderByAggregateInput
@@ -320,6 +338,8 @@ export type MessageScalarWhereWithAggregatesInput = {
   role?: Prisma.EnumMessageRoleWithAggregatesFilter<"Message"> | $Enums.MessageRole
   content?: Prisma.StringWithAggregatesFilter<"Message"> | string
   status?: Prisma.EnumMessageStatusWithAggregatesFilter<"Message"> | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.StringNullableListFilter<"Message">
+  lastCategorySlug?: Prisma.StringNullableWithAggregatesFilter<"Message"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Message"> | Date | string
 }
 
@@ -330,6 +350,8 @@ export type MessageCreateInput = {
   role: $Enums.MessageRole
   content?: string
   status: $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
+  lastCategorySlug?: string | null
   createdAt?: Date | string
   conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
   replyToMessage?: Prisma.MessageCreateNestedOneWithoutAssistantReplyInput
@@ -346,6 +368,8 @@ export type MessageUncheckedCreateInput = {
   role: $Enums.MessageRole
   content?: string
   status: $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
+  lastCategorySlug?: string | null
   createdAt?: Date | string
   assistantReply?: Prisma.MessageUncheckedCreateNestedOneWithoutReplyToMessageInput
   productCards?: Prisma.MessageProductCardUncheckedCreateNestedManyWithoutMessageInput
@@ -358,6 +382,8 @@ export type MessageUpdateInput = {
   role?: Prisma.EnumMessageRoleFieldUpdateOperationsInput | $Enums.MessageRole
   content?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
+  lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
   replyToMessage?: Prisma.MessageUpdateOneWithoutAssistantReplyNestedInput
@@ -374,6 +400,8 @@ export type MessageUncheckedUpdateInput = {
   role?: Prisma.EnumMessageRoleFieldUpdateOperationsInput | $Enums.MessageRole
   content?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
+  lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantReply?: Prisma.MessageUncheckedUpdateOneWithoutReplyToMessageNestedInput
   productCards?: Prisma.MessageProductCardUncheckedUpdateManyWithoutMessageNestedInput
@@ -388,6 +416,8 @@ export type MessageCreateManyInput = {
   role: $Enums.MessageRole
   content?: string
   status: $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
+  lastCategorySlug?: string | null
   createdAt?: Date | string
 }
 
@@ -398,6 +428,8 @@ export type MessageUpdateManyMutationInput = {
   role?: Prisma.EnumMessageRoleFieldUpdateOperationsInput | $Enums.MessageRole
   content?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
+  lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -410,6 +442,8 @@ export type MessageUncheckedUpdateManyInput = {
   role?: Prisma.EnumMessageRoleFieldUpdateOperationsInput | $Enums.MessageRole
   content?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
+  lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -421,6 +455,14 @@ export type MessageListRelationFilter = {
 
 export type MessageOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
+}
+
+export type StringNullableListFilter<$PrismaModel = never> = {
+  equals?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel> | null
+  has?: string | Prisma.StringFieldRefInput<$PrismaModel> | null
+  hasEvery?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
+  hasSome?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
+  isEmpty?: boolean
 }
 
 export type MessageNullableScalarRelationFilter = {
@@ -447,6 +489,8 @@ export type MessageCountOrderByAggregateInput = {
   role?: Prisma.SortOrder
   content?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  lastSearchTerms?: Prisma.SortOrder
+  lastCategorySlug?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -463,6 +507,7 @@ export type MessageMaxOrderByAggregateInput = {
   role?: Prisma.SortOrder
   content?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  lastCategorySlug?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -475,6 +520,7 @@ export type MessageMinOrderByAggregateInput = {
   role?: Prisma.SortOrder
   content?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  lastCategorySlug?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -529,6 +575,10 @@ export type MessageUncheckedUpdateManyWithoutConversationNestedInput = {
   deleteMany?: Prisma.MessageScalarWhereInput | Prisma.MessageScalarWhereInput[]
 }
 
+export type MessageCreatelastSearchTermsInput = {
+  set: string[]
+}
+
 export type MessageCreateNestedOneWithoutAssistantReplyInput = {
   create?: Prisma.XOR<Prisma.MessageCreateWithoutAssistantReplyInput, Prisma.MessageUncheckedCreateWithoutAssistantReplyInput>
   connectOrCreate?: Prisma.MessageCreateOrConnectWithoutAssistantReplyInput
@@ -565,6 +615,11 @@ export type EnumMessageRoleFieldUpdateOperationsInput = {
 
 export type EnumMessageStatusFieldUpdateOperationsInput = {
   set?: $Enums.MessageStatus
+}
+
+export type MessageUpdatelastSearchTermsInput = {
+  set?: string[]
+  push?: string | string[]
 }
 
 export type MessageUpdateOneWithoutAssistantReplyNestedInput = {
@@ -618,6 +673,8 @@ export type MessageCreateWithoutConversationInput = {
   role: $Enums.MessageRole
   content?: string
   status: $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
+  lastCategorySlug?: string | null
   createdAt?: Date | string
   replyToMessage?: Prisma.MessageCreateNestedOneWithoutAssistantReplyInput
   assistantReply?: Prisma.MessageCreateNestedOneWithoutReplyToMessageInput
@@ -632,6 +689,8 @@ export type MessageUncheckedCreateWithoutConversationInput = {
   role: $Enums.MessageRole
   content?: string
   status: $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
+  lastCategorySlug?: string | null
   createdAt?: Date | string
   assistantReply?: Prisma.MessageUncheckedCreateNestedOneWithoutReplyToMessageInput
   productCards?: Prisma.MessageProductCardUncheckedCreateNestedManyWithoutMessageInput
@@ -675,6 +734,8 @@ export type MessageScalarWhereInput = {
   role?: Prisma.EnumMessageRoleFilter<"Message"> | $Enums.MessageRole
   content?: Prisma.StringFilter<"Message"> | string
   status?: Prisma.EnumMessageStatusFilter<"Message"> | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.StringNullableListFilter<"Message">
+  lastCategorySlug?: Prisma.StringNullableFilter<"Message"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
 }
 
@@ -685,6 +746,8 @@ export type MessageCreateWithoutAssistantReplyInput = {
   role: $Enums.MessageRole
   content?: string
   status: $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
+  lastCategorySlug?: string | null
   createdAt?: Date | string
   conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
   replyToMessage?: Prisma.MessageCreateNestedOneWithoutAssistantReplyInput
@@ -700,6 +763,8 @@ export type MessageUncheckedCreateWithoutAssistantReplyInput = {
   role: $Enums.MessageRole
   content?: string
   status: $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
+  lastCategorySlug?: string | null
   createdAt?: Date | string
   productCards?: Prisma.MessageProductCardUncheckedCreateNestedManyWithoutMessageInput
 }
@@ -716,6 +781,8 @@ export type MessageCreateWithoutReplyToMessageInput = {
   role: $Enums.MessageRole
   content?: string
   status: $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
+  lastCategorySlug?: string | null
   createdAt?: Date | string
   conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
   assistantReply?: Prisma.MessageCreateNestedOneWithoutReplyToMessageInput
@@ -730,6 +797,8 @@ export type MessageUncheckedCreateWithoutReplyToMessageInput = {
   role: $Enums.MessageRole
   content?: string
   status: $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
+  lastCategorySlug?: string | null
   createdAt?: Date | string
   assistantReply?: Prisma.MessageUncheckedCreateNestedOneWithoutReplyToMessageInput
   productCards?: Prisma.MessageProductCardUncheckedCreateNestedManyWithoutMessageInput
@@ -758,6 +827,8 @@ export type MessageUpdateWithoutAssistantReplyInput = {
   role?: Prisma.EnumMessageRoleFieldUpdateOperationsInput | $Enums.MessageRole
   content?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
+  lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
   replyToMessage?: Prisma.MessageUpdateOneWithoutAssistantReplyNestedInput
@@ -773,6 +844,8 @@ export type MessageUncheckedUpdateWithoutAssistantReplyInput = {
   role?: Prisma.EnumMessageRoleFieldUpdateOperationsInput | $Enums.MessageRole
   content?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
+  lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   productCards?: Prisma.MessageProductCardUncheckedUpdateManyWithoutMessageNestedInput
 }
@@ -795,6 +868,8 @@ export type MessageUpdateWithoutReplyToMessageInput = {
   role?: Prisma.EnumMessageRoleFieldUpdateOperationsInput | $Enums.MessageRole
   content?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
+  lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
   assistantReply?: Prisma.MessageUpdateOneWithoutReplyToMessageNestedInput
@@ -809,6 +884,8 @@ export type MessageUncheckedUpdateWithoutReplyToMessageInput = {
   role?: Prisma.EnumMessageRoleFieldUpdateOperationsInput | $Enums.MessageRole
   content?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
+  lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantReply?: Prisma.MessageUncheckedUpdateOneWithoutReplyToMessageNestedInput
   productCards?: Prisma.MessageProductCardUncheckedUpdateManyWithoutMessageNestedInput
@@ -821,6 +898,8 @@ export type MessageCreateWithoutProductCardsInput = {
   role: $Enums.MessageRole
   content?: string
   status: $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
+  lastCategorySlug?: string | null
   createdAt?: Date | string
   conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
   replyToMessage?: Prisma.MessageCreateNestedOneWithoutAssistantReplyInput
@@ -836,6 +915,8 @@ export type MessageUncheckedCreateWithoutProductCardsInput = {
   role: $Enums.MessageRole
   content?: string
   status: $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
+  lastCategorySlug?: string | null
   createdAt?: Date | string
   assistantReply?: Prisma.MessageUncheckedCreateNestedOneWithoutReplyToMessageInput
 }
@@ -863,6 +944,8 @@ export type MessageUpdateWithoutProductCardsInput = {
   role?: Prisma.EnumMessageRoleFieldUpdateOperationsInput | $Enums.MessageRole
   content?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
+  lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
   replyToMessage?: Prisma.MessageUpdateOneWithoutAssistantReplyNestedInput
@@ -878,6 +961,8 @@ export type MessageUncheckedUpdateWithoutProductCardsInput = {
   role?: Prisma.EnumMessageRoleFieldUpdateOperationsInput | $Enums.MessageRole
   content?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
+  lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantReply?: Prisma.MessageUncheckedUpdateOneWithoutReplyToMessageNestedInput
 }
@@ -890,6 +975,8 @@ export type MessageCreateManyConversationInput = {
   role: $Enums.MessageRole
   content?: string
   status: $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
+  lastCategorySlug?: string | null
   createdAt?: Date | string
 }
 
@@ -900,6 +987,8 @@ export type MessageUpdateWithoutConversationInput = {
   role?: Prisma.EnumMessageRoleFieldUpdateOperationsInput | $Enums.MessageRole
   content?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
+  lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   replyToMessage?: Prisma.MessageUpdateOneWithoutAssistantReplyNestedInput
   assistantReply?: Prisma.MessageUpdateOneWithoutReplyToMessageNestedInput
@@ -914,6 +1003,8 @@ export type MessageUncheckedUpdateWithoutConversationInput = {
   role?: Prisma.EnumMessageRoleFieldUpdateOperationsInput | $Enums.MessageRole
   content?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
+  lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantReply?: Prisma.MessageUncheckedUpdateOneWithoutReplyToMessageNestedInput
   productCards?: Prisma.MessageProductCardUncheckedUpdateManyWithoutMessageNestedInput
@@ -927,6 +1018,8 @@ export type MessageUncheckedUpdateManyWithoutConversationInput = {
   role?: Prisma.EnumMessageRoleFieldUpdateOperationsInput | $Enums.MessageRole
   content?: Prisma.StringFieldUpdateOperationsInput | string
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
+  lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -970,6 +1063,8 @@ export type MessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   role?: boolean
   content?: boolean
   status?: boolean
+  lastSearchTerms?: boolean
+  lastCategorySlug?: boolean
   createdAt?: boolean
   conversation?: boolean | Prisma.ConversationDefaultArgs<ExtArgs>
   replyToMessage?: boolean | Prisma.Message$replyToMessageArgs<ExtArgs>
@@ -987,6 +1082,8 @@ export type MessageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   role?: boolean
   content?: boolean
   status?: boolean
+  lastSearchTerms?: boolean
+  lastCategorySlug?: boolean
   createdAt?: boolean
   conversation?: boolean | Prisma.ConversationDefaultArgs<ExtArgs>
   replyToMessage?: boolean | Prisma.Message$replyToMessageArgs<ExtArgs>
@@ -1001,6 +1098,8 @@ export type MessageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   role?: boolean
   content?: boolean
   status?: boolean
+  lastSearchTerms?: boolean
+  lastCategorySlug?: boolean
   createdAt?: boolean
   conversation?: boolean | Prisma.ConversationDefaultArgs<ExtArgs>
   replyToMessage?: boolean | Prisma.Message$replyToMessageArgs<ExtArgs>
@@ -1015,10 +1114,12 @@ export type MessageSelectScalar = {
   role?: boolean
   content?: boolean
   status?: boolean
+  lastSearchTerms?: boolean
+  lastCategorySlug?: boolean
   createdAt?: boolean
 }
 
-export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "conversationId" | "clientRequestId" | "replyToMessageId" | "sequence" | "role" | "content" | "status" | "createdAt", ExtArgs["result"]["message"]>
+export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "conversationId" | "clientRequestId" | "replyToMessageId" | "sequence" | "role" | "content" | "status" | "lastSearchTerms" | "lastCategorySlug" | "createdAt", ExtArgs["result"]["message"]>
 export type MessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   conversation?: boolean | Prisma.ConversationDefaultArgs<ExtArgs>
   replyToMessage?: boolean | Prisma.Message$replyToMessageArgs<ExtArgs>
@@ -1052,6 +1153,8 @@ export type $MessagePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     role: $Enums.MessageRole
     content: string
     status: $Enums.MessageStatus
+    lastSearchTerms: string[]
+    lastCategorySlug: string | null
     createdAt: Date
   }, ExtArgs["result"]["message"]>
   composites: {}
@@ -1488,6 +1591,8 @@ export interface MessageFieldRefs {
   readonly role: Prisma.FieldRef<"Message", 'MessageRole'>
   readonly content: Prisma.FieldRef<"Message", 'String'>
   readonly status: Prisma.FieldRef<"Message", 'MessageStatus'>
+  readonly lastSearchTerms: Prisma.FieldRef<"Message", 'String[]'>
+  readonly lastCategorySlug: Prisma.FieldRef<"Message", 'String'>
   readonly createdAt: Prisma.FieldRef<"Message", 'DateTime'>
 }
     

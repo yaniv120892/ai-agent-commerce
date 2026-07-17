@@ -4,6 +4,8 @@ import { CatalogClient } from "./catalog-client";
 import { CatalogResolver } from "./catalog-resolver";
 import type { RetrievalPlan, ValidatedRetrievalPlan } from "./types";
 
+const allowedCategorySlugs = ["smartphones", "laptops"];
+
 const catalogProducts = [
   {
     id: 1,
@@ -88,6 +90,7 @@ describe("CatalogResolver", () => {
 
     const result = await resolver.resolve(
       createPlan({ maxPrice: 300, sort: "price_asc" }),
+      allowedCategorySlugs,
     );
 
     expect(result.productCards.map((product) => product.productId)).toEqual([
@@ -112,7 +115,7 @@ describe("CatalogResolver", () => {
     ]);
     const resolver = new CatalogResolver(catalogClient);
 
-    const result = await resolver.resolve(createPlan());
+    const result = await resolver.resolve(createPlan(), allowedCategorySlugs);
 
     expect(result.productCards.map((product) => product.productId)).toEqual([
       1, 2,
@@ -130,6 +133,7 @@ describe("CatalogResolver", () => {
         intent: "browse_category",
         searchTerms: [],
       }),
+      allowedCategorySlugs,
     );
 
     expect(catalogClient.listCategoryProducts).toHaveBeenCalledWith(
@@ -148,6 +152,7 @@ describe("CatalogResolver", () => {
         intent: "browse_category",
         searchTerms: [],
       }),
+      allowedCategorySlugs,
     );
 
     expect(catalogClient.listProducts).toHaveBeenCalledOnce();
@@ -166,6 +171,7 @@ describe("CatalogResolver", () => {
         referencedProductIds: [1],
         searchTerms: [],
       }),
+      allowedCategorySlugs,
     );
 
     expect(catalogClient.getProduct).toHaveBeenCalledWith(1);
@@ -185,6 +191,7 @@ describe("CatalogResolver", () => {
         referencedProductIds: [1, 2],
         searchTerms: [],
       }),
+      allowedCategorySlugs,
     );
 
     expect(catalogClient.getProduct).toHaveBeenNthCalledWith(1, 1);
@@ -227,11 +234,24 @@ describe("CatalogResolver", () => {
         inStock: true,
         minRating: 4.5,
       }),
+      allowedCategorySlugs,
     );
 
     expect(result.productCards.map((product) => product.productId)).toEqual([
       4,
     ]);
+  });
+
+  it("throws on an upstream product whose category is not in the allowlist", async () => {
+    const catalogClient = createCatalogClient();
+    catalogClient.searchProducts.mockResolvedValue([
+      { ...catalogProducts[0], category: "unapproved-category" },
+    ]);
+    const resolver = new CatalogResolver(catalogClient);
+
+    await expect(
+      resolver.resolve(createPlan(), allowedCategorySlugs),
+    ).rejects.toMatchObject({ code: "INVALID_UPSTREAM_PAYLOAD" });
   });
 
   it("caps resolved product cards at six", async () => {
@@ -244,7 +264,7 @@ describe("CatalogResolver", () => {
     );
     const resolver = new CatalogResolver(catalogClient);
 
-    const result = await resolver.resolve(createPlan());
+    const result = await resolver.resolve(createPlan(), allowedCategorySlugs);
 
     expect(result.productCards).toHaveLength(6);
   });

@@ -1,10 +1,12 @@
 import "server-only";
 
 import type { ProductCardSnapshot } from "../conversations/types";
+import type { CompletedRetrievalSummary } from "./types";
 
 export type ReplyCompletion = {
   content: string;
   productCards: ProductCardSnapshot[];
+  retrievalSummary: CompletedRetrievalSummary;
 };
 
 export class ReplyCompletionCache {

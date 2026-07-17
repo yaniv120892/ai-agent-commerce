@@ -27,6 +27,8 @@ model Message {
   role             MessageRole
   content          String               @default("")
   status           MessageStatus
+  lastSearchTerms  String[]             @default([]) @map("last_search_terms")
+  lastCategorySlug String?              @map("last_category_slug")
   createdAt        DateTime             @default(now()) @map("created_at")
   conversation     Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   replyToMessage   Message?             @relation("MessageReply", fields: [replyToMessageId], references: [id], onDelete: Cascade)

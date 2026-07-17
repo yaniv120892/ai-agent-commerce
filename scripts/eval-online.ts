@@ -69,7 +69,7 @@ async function evaluateScenario(
     firstPassPlanValid = planOutcome.firstPassValid;
     repairAttempted = planOutcome.repairAttempted;
 
-    const resolved = await catalogResolver.resolve(plan);
+    const resolved = await catalogResolver.resolve(plan, allowedCategorySlugs);
     const ignoredConstraints = new Set(
       nonFatalConstraintsByIntent[plan.intent] ?? [],
     );

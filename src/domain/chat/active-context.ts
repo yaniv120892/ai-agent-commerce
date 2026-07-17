@@ -1,26 +1,59 @@
-import type { PersistedMessage } from "../conversations/types";
+import type {
+  PersistedMessage,
+  ProductCardSnapshot,
+} from "../conversations/types";
 
 import type { ActiveRetrievalContext } from "./types";
 
 export function deriveActiveContext(
   history: PersistedMessage[],
 ): ActiveRetrievalContext | null {
-  const lastResolvedMessage = [...history]
+  const lastAssistantMessage = [...history]
     .reverse()
-    .find(
-      (message) =>
-        message.role === "assistant" && message.productCards.length > 0,
-    );
+    .find((message) => message.role === "assistant");
 
-  if (lastResolvedMessage === undefined) {
+  if (lastAssistantMessage === undefined) {
     return null;
   }
 
-  const categories = new Set(
-    lastResolvedMessage.productCards.map((productCard) => productCard.category),
-  );
+  if (lastAssistantMessage.productCards.length > 0) {
+    return {
+      categorySlug: deriveDominantCategory(lastAssistantMessage.productCards),
+      lastAttemptedSearch: null,
+    };
+  }
+
+  const attemptedSearch =
+    lastAssistantMessage.lastSearchTerms.length > 0 ||
+    lastAssistantMessage.lastCategorySlug !== null;
+
+  if (!attemptedSearch) {
+    return null;
+  }
 
   return {
-    categorySlug: categories.size === 1 ? [...categories][0] : null,
+    categorySlug: null,
+    lastAttemptedSearch: {
+      categorySlug: lastAssistantMessage.lastCategorySlug,
+      searchTerms: lastAssistantMessage.lastSearchTerms,
+    },
   };
+}
+
+function deriveDominantCategory(productCards: ProductCardSnapshot[]): string {
+  const countByCategory = new Map<string, number>();
+  let dominantCategory = productCards[0].category;
+  let dominantCount = 0;
+
+  for (const productCard of productCards) {
+    const count = (countByCategory.get(productCard.category) ?? 0) + 1;
+    countByCategory.set(productCard.category, count);
+
+    if (count > dominantCount) {
+      dominantCount = count;
+      dominantCategory = productCard.category;
+    }
+  }
+
+  return dominantCategory;
 }
