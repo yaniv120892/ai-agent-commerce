@@ -41,9 +41,7 @@ async function evaluateScenario(
   const products = selectFixtureCatalog(scenario);
   const history = createHistory(scenario.priorMessages, getFixtureProduct);
   const priorProductIds = collectPriorProductIds(history);
-  const resolver = new CatalogResolver(new FixtureCatalogClient(products), [
-    ...new Set(products.map((product) => product.category)),
-  ]);
+  const resolver = new CatalogResolver(new FixtureCatalogClient(products));
   const modelClient = new DeterministicModelClient();
   const failures: string[] = [];
   let actualIntent: RetrievalIntent | null = null;
@@ -53,11 +51,10 @@ async function evaluateScenario(
   let planValid = false;
 
   try {
+    const allowedCategorySlugs = await resolver.listAllowedCategorySlugs();
     const plan = await modelClient.createRetrievalPlan({
       activeContext: deriveActiveContext(history),
-      allowedCategorySlugs: [
-        ...new Set(products.map((product) => product.category)),
-      ],
+      allowedCategorySlugs,
       history,
       priorProductIds,
       userMessage: scenario.currentInput,

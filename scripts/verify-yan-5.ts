@@ -6,33 +6,6 @@ import { CatalogResolver } from "../src/domain/catalog/catalog-resolver";
 import type { PersistedMessage } from "../src/domain/conversations/types";
 import { resolveOpenAIModelSelection } from "../src/lib/openai-model-config";
 
-const allowedCategorySlugs = [
-  "beauty",
-  "fragrances",
-  "furniture",
-  "groceries",
-  "home-decoration",
-  "kitchen-accessories",
-  "laptops",
-  "mens-shirts",
-  "mens-shoes",
-  "mens-watches",
-  "mobile-accessories",
-  "motorcycle",
-  "skin-care",
-  "smartphones",
-  "sports-accessories",
-  "sunglasses",
-  "tablets",
-  "tops",
-  "vehicle",
-  "womens-bags",
-  "womens-dresses",
-  "womens-jewellery",
-  "womens-shoes",
-  "womens-watches",
-];
-
 async function main(): Promise<void> {
   const apiKey = process.env.OPENAI_API_KEY;
 
@@ -54,10 +27,8 @@ async function main(): Promise<void> {
     timeoutMs: 20000,
   });
   const catalogClient = new CatalogClient(fetch, "https://dummyjson.com", 5000);
-  const catalogResolver = new CatalogResolver(
-    catalogClient,
-    allowedCategorySlugs,
-  );
+  const catalogResolver = new CatalogResolver(catalogClient);
+  const allowedCategorySlugs = await catalogResolver.listAllowedCategorySlugs();
 
   console.log(
     '\n--- Turn 1: "ma shoes" resolves to mens-shoes (per the ticket) ---',

@@ -3,7 +3,6 @@ import "dotenv/config";
 import { performance } from "node:perf_hooks";
 
 import { deriveActiveContext } from "../src/domain/chat/active-context";
-import { allowedCategorySlugs } from "../src/domain/catalog/allowed-category-slugs";
 import { CatalogClient } from "../src/domain/catalog/catalog-client";
 import { CatalogResolver } from "../src/domain/catalog/catalog-resolver";
 import type { RetrievalIntent } from "../src/domain/catalog/types";
@@ -78,6 +77,7 @@ async function evaluateScenario(
   scenario: Scenario,
   modelClient: ModelClient,
   catalogResolver: CatalogResolver,
+  allowedCategorySlugs: string[],
 ): Promise<EvaluationCaseResult> {
   const startedAt = performance.now();
   const history = createHistory(scenario.priorMessages, getFixtureProduct);
@@ -188,10 +188,8 @@ async function main(): Promise<void> {
   );
 
   const catalogClient = new CatalogClient(fetch, "https://dummyjson.com", 5000);
-  const catalogResolver = new CatalogResolver(
-    catalogClient,
-    allowedCategorySlugs,
-  );
+  const catalogResolver = new CatalogResolver(catalogClient);
+  const allowedCategorySlugs = await catalogResolver.listAllowedCategorySlugs();
   const { OpenAIModelClient } =
     await import("../src/domain/chat/openai-model-client");
   const modelClient = new OpenAIModelClient({
@@ -215,6 +213,7 @@ async function main(): Promise<void> {
       scenario,
       modelClient,
       catalogResolver,
+      allowedCategorySlugs,
     );
 
     results.push(result);

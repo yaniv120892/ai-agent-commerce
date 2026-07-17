@@ -19,9 +19,10 @@ jobs:
           filters: |
             planner:
               - 'src/domain/chat/openai-model-client.ts'
+              - 'src/domain/chat/model-client-factory.ts'
               - 'src/domain/chat/active-context.ts'
               - 'src/domain/catalog/catalog-resolver.ts'
-              - 'src/domain/catalog/allowed-category-slugs.ts'
+              - 'src/domain/catalog/catalog-client.ts'
               - 'src/domain/catalog/types.ts'
               - 'src/domain/testing/**'
               - 'src/lib/openai-model-config.ts'

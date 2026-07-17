@@ -44,18 +44,14 @@ const retrievalPlan: RetrievalPlan = {
 describe("conversation routes", () => {
   const repository = new ConversationRepository(prisma);
   const catalogResolver = {
+    listAllowedCategorySlugs: vi.fn().mockResolvedValue(["smartphones"]),
     resolve: vi.fn().mockResolvedValue({ productCards }),
   };
   const modelClient: ModelClient = {
     createGroundedReply: vi.fn().mockResolvedValue("Phone Ultra is a match."),
     createRetrievalPlan: vi.fn().mockResolvedValue(retrievalPlan),
   };
-  const chatService = new ChatService(
-    repository,
-    catalogResolver,
-    modelClient,
-    ["smartphones"],
-  );
+  const chatService = new ChatService(repository, catalogResolver, modelClient);
 
   beforeEach(async () => {
     await prisma.messageProductCard.deleteMany();
@@ -115,6 +111,7 @@ describe("conversation routes", () => {
       error: {
         code: "PERSISTENCE_UNAVAILABLE",
         message: "Conversation storage is unavailable. Please retry.",
+        retryable: true,
       },
     });
 
@@ -161,6 +158,7 @@ describe("conversation routes", () => {
       error: {
         code: "UNKNOWN_CONVERSATION",
         message: "This conversation is no longer available.",
+        retryable: false,
       },
     });
   });
@@ -250,6 +248,7 @@ describe("conversation routes", () => {
       error: {
         code: "UNKNOWN_CONVERSATION",
         message: "This conversation is no longer available.",
+        retryable: false,
       },
     });
   });
@@ -271,6 +270,7 @@ describe("conversation routes", () => {
       error: {
         code: "INVALID_MESSAGE",
         message: "Message content must be between 1 and 2,000 characters.",
+        retryable: false,
       },
     });
     expect(getConversationApiDependencies).not.toHaveBeenCalled();
