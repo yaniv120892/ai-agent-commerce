@@ -6,11 +6,16 @@ import type {
 
 export type { RetrievalPlan } from "../catalog/types";
 
+export type ActiveRetrievalContext = {
+  categorySlug: string | null;
+};
+
 export type ModelPlanInput = {
   userMessage: string;
   history: PersistedMessage[];
   allowedCategorySlugs: string[];
   priorProductIds: number[];
+  activeContext: ActiveRetrievalContext | null;
 };
 
 export type ModelReplyInput = {

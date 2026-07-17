@@ -63,6 +63,7 @@ async function main(): Promise<void> {
   for (const scenario of scenarios) {
     try {
       const plan = await modelClient.createRetrievalPlan({
+        activeContext: null,
         allowedCategorySlugs,
         history: [],
         priorProductIds: [],
