@@ -110,7 +110,7 @@ Adding a `redis` service to `compose.yaml` is genuinely low-effort (same shape a
 - Option A: Redis now, in this ticket — add the client, the compose service, and a small generic `RedisCache` wrapper; `CachingCatalogClient` is built on top of it.
 - Option B: In-memory now, matching the ticket's original scope — but `CachingCatalogClient` takes a small generic `Cache` interface (`get`/`set`/`getOrSet`) as a constructor argument, so swapping in a `RedisCache` later is a one-line change at the wiring site in `conversation-dependencies.ts`, not a rewrite. Redis becomes its own follow-up ticket once this one's shipped. (Recommended — ships today's actual ask, keeps the door open, doesn't block this ticket on infra decisions)
 
->
+> A
 
 ---
 
@@ -120,7 +120,7 @@ Adding a `redis` service to `compose.yaml` is genuinely low-effort (same shape a
 - Option A: Scoped narrowly — a `RedisCatalogCache` used only by the catalog decorator, nothing else touches it
 - Option B: A genuinely generic `RedisCache<T>` with a `getOrSet(key, ttlSeconds, fetcher): Promise<T>` shape, reusable later for `ReplyCompletionCache` or other domains (matches your "generic method for caching" ask literally, but is more upfront design surface)
 
->
+> A
 
 ---
 
@@ -132,6 +132,6 @@ Since there's no AWS/GCP Redis provider in the picture yet (no deployment config
 - Option A: Simple in-app hit/miss counters for now (logged and/or exposed as a plain counter object usable from tests), and revisit provider/dashboard-level metrics once you actually pick a host (Recommended)
 - Option B: Skip metrics entirely for this ticket
 
->
+> A
 
 ---
