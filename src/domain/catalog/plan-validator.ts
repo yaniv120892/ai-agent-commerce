@@ -151,6 +151,13 @@ export class PlanValidator {
         `Retrieval plan referenced a product outside the conversation (productIds: ${unknownProductIds.join(", ")})`,
       );
     }
+
+    const distinctProductIds = new Set(plan.referencedProductIds);
+    if (distinctProductIds.size !== plan.referencedProductIds.length) {
+      this.throwInvalidPlan(
+        `Retrieval plan referenced the same product more than once (productIds: ${plan.referencedProductIds.join(", ")})`,
+      );
+    }
   }
 
   private hasFilters(plan: RetrievalPlan): boolean {
