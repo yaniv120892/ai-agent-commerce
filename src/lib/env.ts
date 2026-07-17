@@ -2,11 +2,15 @@ import "server-only";
 
 import { z } from "zod";
 
+import { resolveOpenAIModelSelection } from "./openai-model-config";
 import type { Environment } from "./types";
 
 const environmentSchema = z.object({
   DATABASE_URL: z.url(),
   OPENAI_API_KEY: z.string().min(1),
+  OPENAI_MODEL: z.string().min(1).optional(),
+  OPENAI_PLANNER_MODEL: z.string().min(1).optional(),
+  OPENAI_REPLY_MODEL: z.string().min(1).optional(),
   OPENAI_TIMEOUT_MS: z.coerce.number().int().positive().default(20000),
   OPENAI_MAX_RETRIES: z.coerce.number().int().nonnegative().default(1),
   OPENAI_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().default(2000),
@@ -38,9 +42,12 @@ export function createEnvironment(values: NodeJS.ProcessEnv): Environment {
     throw new Error("E2E_MODE is allowed only in Next.js development mode");
   }
 
+  const openAiModels = resolveOpenAIModelSelection(values);
+
   return {
     databaseUrl: parsedEnvironment.DATABASE_URL,
     openAiApiKey: parsedEnvironment.OPENAI_API_KEY,
+    openAiModels,
     openAiTimeoutMs: parsedEnvironment.OPENAI_TIMEOUT_MS,
     openAiMaxRetries: parsedEnvironment.OPENAI_MAX_RETRIES,
     openAiMaxOutputTokens: parsedEnvironment.OPENAI_MAX_OUTPUT_TOKENS,

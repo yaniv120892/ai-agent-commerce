@@ -24,6 +24,11 @@ export type ModelReplyInput = {
   products: ProductCardSnapshot[];
 };
 
+export type OpenAIModelSelection = {
+  plannerModel: string;
+  replyModel: string;
+};
+
 export interface ModelClient {
   createRetrievalPlan(input: ModelPlanInput): Promise<RetrievalPlan>;
   createGroundedReply(input: ModelReplyInput): Promise<string>;

@@ -10,6 +10,7 @@ import type {
   ModelClient,
   ModelPlanInput,
   ModelReplyInput,
+  OpenAIModelSelection,
   RetrievalPlan,
 } from "./types";
 
@@ -38,6 +39,7 @@ type OpenAIResponsesClient = Pick<OpenAI, "responses">;
 
 export type OpenAIModelClientConfig = {
   apiKey: string;
+  models: OpenAIModelSelection;
   timeoutMs: number;
   maxRetries: number;
   maxOutputTokens: number;
@@ -53,14 +55,15 @@ export function createOpenAIClient(config: OpenAIModelClientConfig): OpenAI {
 
 export class OpenAIModelClient implements ModelClient {
   private readonly client: OpenAIResponsesClient;
+  private readonly models: OpenAIModelSelection;
   private readonly maxOutputTokens: number;
 
   public constructor(
     config: OpenAIModelClientConfig,
     client: OpenAIResponsesClient = createOpenAIClient(config),
-    private readonly model = "gpt-5.4-mini",
   ) {
     this.client = client;
+    this.models = config.models;
     this.maxOutputTokens = config.maxOutputTokens;
   }
 
@@ -80,7 +83,7 @@ export class OpenAIModelClient implements ModelClient {
         },
       ],
       max_output_tokens: this.maxOutputTokens,
-      model: this.model,
+      model: this.models.plannerModel,
       text: {
         format: zodTextFormat(retrievalPlanSchema, "retrieval_plan"),
       },
@@ -114,7 +117,7 @@ export class OpenAIModelClient implements ModelClient {
         },
       ],
       max_output_tokens: this.maxOutputTokens,
-      model: this.model,
+      model: this.models.replyModel,
     });
 
     this.assertResponseComplete(response, "grounded reply");

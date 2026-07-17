@@ -56,6 +56,7 @@ export function getConversationApiDependencies(): ConversationApiDependencies {
         apiKey: environment.openAiApiKey,
         maxOutputTokens: environment.openAiMaxOutputTokens,
         maxRetries: environment.openAiMaxRetries,
+        models: environment.openAiModels,
         timeoutMs: environment.openAiTimeoutMs,
       });
 
