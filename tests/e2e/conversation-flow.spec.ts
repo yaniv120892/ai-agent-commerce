@@ -24,13 +24,15 @@ test("persists product cards and resumes a prior conversation from the sidebar",
     "src",
     /^data:image\/svg\+xml,/u,
   );
-  const imageLoadState = await firstProductImage.evaluate((image) => ({
-    complete: image.complete,
-    naturalWidth: image.naturalWidth,
-  }));
+  await expect
+    .poll(async () =>
+      firstProductImage.evaluate((element) => {
+        const image = element as HTMLImageElement;
 
-  expect(imageLoadState.complete).toBe(true);
-  expect(imageLoadState.naturalWidth).toBeGreaterThan(0);
+        return image.complete && image.naturalWidth > 0;
+      }),
+    )
+    .toBe(true);
 
   const savedTitle = await firstProductCard.getByRole("heading").textContent();
   const savedPrice = await firstProductCard
