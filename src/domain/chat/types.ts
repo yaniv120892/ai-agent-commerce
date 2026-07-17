@@ -60,6 +60,26 @@ export interface ModelClient {
   createGroundedReply(input: ModelReplyInput): Promise<string>;
 }
 
+export type ReplyCompletion = {
+  content: string;
+  productCards: ProductCardSnapshot[];
+  retrievalSummary: CompletedRetrievalSummary;
+  retrievalAnchorMessage: string | null;
+};
+
+export interface ReplyCompletionCacheContract {
+  get(
+    conversationId: string,
+    assistantMessageId: string,
+  ): Promise<ReplyCompletion | null>;
+  set(
+    conversationId: string,
+    assistantMessageId: string,
+    completion: ReplyCompletion,
+  ): Promise<void>;
+  delete(conversationId: string, assistantMessageId: string): Promise<void>;
+}
+
 export type StartConversationInput = {
   content: string;
   clientRequestId: string;

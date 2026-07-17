@@ -1,22 +1,16 @@
 import "server-only";
 
-import type { ProductCardSnapshot } from "../conversations/types";
-import type { CompletedRetrievalSummary } from "./types";
+import type { ReplyCompletion, ReplyCompletionCacheContract } from "./types";
 
-export type ReplyCompletion = {
-  content: string;
-  productCards: ProductCardSnapshot[];
-  retrievalSummary: CompletedRetrievalSummary;
-  retrievalAnchorMessage: string | null;
-};
+export type { ReplyCompletion } from "./types";
 
-export class ReplyCompletionCache {
+export class InMemoryReplyCompletionCache implements ReplyCompletionCacheContract {
   private readonly completions = new Map<string, ReplyCompletion>();
 
-  public get(
+  public async get(
     conversationId: string,
     assistantMessageId: string,
-  ): ReplyCompletion | null {
+  ): Promise<ReplyCompletion | null> {
     return (
       this.completions.get(
         this.createKey(conversationId, assistantMessageId),
@@ -24,18 +18,21 @@ export class ReplyCompletionCache {
     );
   }
 
-  public set(
+  public async set(
     conversationId: string,
     assistantMessageId: string,
     completion: ReplyCompletion,
-  ): void {
+  ): Promise<void> {
     this.completions.set(
       this.createKey(conversationId, assistantMessageId),
       completion,
     );
   }
 
-  public delete(conversationId: string, assistantMessageId: string): void {
+  public async delete(
+    conversationId: string,
+    assistantMessageId: string,
+  ): Promise<void> {
     this.completions.delete(this.createKey(conversationId, assistantMessageId));
   }
 

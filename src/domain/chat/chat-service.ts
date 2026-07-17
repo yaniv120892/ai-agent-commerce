@@ -23,14 +23,12 @@ import {
   type CompletedRetrievalSummary,
   type ModelClient,
   type PlanAttemptOutcome,
+  type ReplyCompletionCacheContract,
   type RetrievalPlan,
   type StartConversationInput,
 } from "./types";
 import { deriveActiveContext } from "./active-context";
-import {
-  ReplyCompletionCache,
-  type ReplyCompletion,
-} from "./reply-completion-cache";
+import { InMemoryReplyCompletionCache } from "./reply-completion-cache";
 
 type ConversationStore = Pick<
   ConversationRepository,
@@ -83,7 +81,7 @@ export class ChatService {
     private readonly catalogResolver: CatalogResolution,
     private readonly modelClient: ModelClient,
     private readonly planRepairService: PlanCreation,
-    private readonly replyCompletionCache = new ReplyCompletionCache(),
+    private readonly replyCompletionCache: ReplyCompletionCacheContract = new InMemoryReplyCompletionCache(),
   ) {}
 
   public async startConversation(
@@ -195,7 +193,7 @@ export class ChatService {
 
     const { assistantMessage } = appendedReply;
 
-    const cachedCompletion = this.replyCompletionCache.get(
+    const cachedCompletion = await this.replyCompletionCache.get(
       input.conversationId,
       assistantMessage.id,
     );
@@ -423,7 +421,10 @@ export class ChatService {
           productCards,
           retrievalAnchorMessage,
         });
-      this.replyCompletionCache.delete(conversationId, assistantMessage.id);
+      await this.replyCompletionCache.delete(
+        conversationId,
+        assistantMessage.id,
+      );
 
       return {
         assistantMessage: completedAssistantMessage,
@@ -431,7 +432,7 @@ export class ChatService {
         status: "complete",
       };
     } catch {
-      this.replyCompletionCache.set(conversationId, assistantMessage.id, {
+      await this.replyCompletionCache.set(conversationId, assistantMessage.id, {
         content,
         productCards,
         retrievalSummary,
