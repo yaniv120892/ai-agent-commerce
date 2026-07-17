@@ -195,9 +195,9 @@ export class DeterministicModelClient implements ModelClient {
       };
     }
 
-    const searchTerm = this.findSearchTerm(normalizedMessage, input);
+    const searchTerms = this.findSearchTerms(normalizedMessage, input);
 
-    if (searchTerm === null) {
+    if (searchTerms === null) {
       return this.createNonRetrievalPlan(
         "clarify",
         "Which product category should I search?",
@@ -212,7 +212,7 @@ export class DeterministicModelClient implements ModelClient {
       maxPrice: this.findMaximumPrice(normalizedMessage),
       minRating: null,
       referencedProductIds: [],
-      searchTerms: [searchTerm],
+      searchTerms,
       sort: this.findSort(normalizedMessage),
     };
   }
@@ -285,23 +285,84 @@ export class DeterministicModelClient implements ModelClient {
     return match === null ? null : Number(match[1]);
   }
 
-  private findSearchTerm(value: string, input: ModelPlanInput): string | null {
+  private findSearchTerms(
+    value: string,
+    input: ModelPlanInput,
+  ): string[] | null {
     const category = this.findCategory(value);
 
     if (category !== null) {
-      return category === "smartphones" ? "phone" : category.slice(0, -1);
+      return [this.categoryToSearchTerm(category)];
     }
 
-    const historyText = input.history
-      .map((message) => message.content)
-      .join(" ");
-    const historyCategory = this.findCategory(this.normalizeText(historyText));
+    const activeCategorySlug = input.activeContext?.categorySlug ?? null;
 
-    if (historyCategory === "smartphones") {
-      return "phone";
+    if (activeCategorySlug === null) {
+      return null;
     }
 
-    return historyCategory === null ? null : historyCategory.slice(0, -1);
+    return [
+      this.categoryToSearchTerm(activeCategorySlug),
+      ...this.extractAttributeTerms(value),
+    ].slice(0, 2);
+  }
+
+  private categoryToSearchTerm(categorySlug: string): string {
+    return categorySlug === "smartphones" ? "phone" : categorySlug.slice(0, -1);
+  }
+
+  private extractAttributeTerms(value: string): string[] {
+    const ignoredTerms = new Set([
+      "a",
+      "an",
+      "and",
+      "are",
+      "below",
+      "best",
+      "cheapest",
+      "expensive",
+      "find",
+      "for",
+      "highest",
+      "i",
+      "in",
+      "is",
+      "it",
+      "least",
+      "less",
+      "lowest",
+      "me",
+      "most",
+      "need",
+      "of",
+      "on",
+      "one",
+      "only",
+      "or",
+      "please",
+      "price",
+      "rated",
+      "search",
+      "show",
+      "some",
+      "than",
+      "that",
+      "the",
+      "this",
+      "under",
+      "want",
+      "with",
+    ]);
+
+    return value
+      .split(" ")
+      .filter(
+        (token) =>
+          token.length > 0 &&
+          !ignoredTerms.has(token) &&
+          !/^\$?\d+$/u.test(token),
+      )
+      .slice(0, 1);
   }
 
   private findSort(value: string): RetrievalPlan["sort"] {
