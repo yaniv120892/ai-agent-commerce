@@ -27,6 +27,7 @@ function createPlanSummary(
   overrides: Partial<ScenarioPlanSummary> = {},
 ): ScenarioPlanSummary {
   return {
+    assistantMessage: null,
     maxPrice: null,
     referencedProductIds: [],
     searchTerms: [],
@@ -136,6 +137,47 @@ describe("checkForbiddenBehavior", () => {
       [999],
       100,
       new Set(),
+    );
+
+    expect(failures).toEqual([]);
+  });
+
+  it("flags a null assistant message when the scenario forbids it", () => {
+    const failures = checkForbiddenBehavior(
+      ["invalid_assistant_message"],
+      [],
+      [],
+      null,
+      new Set(),
+      null,
+    );
+
+    expect(failures).toContain("assistant message is not a usable reply: null");
+  });
+
+  it('flags the literal string "null" as an invalid assistant message', () => {
+    const failures = checkForbiddenBehavior(
+      ["invalid_assistant_message"],
+      [],
+      [],
+      null,
+      new Set(),
+      "null",
+    );
+
+    expect(failures).toContain(
+      'assistant message is not a usable reply: "null"',
+    );
+  });
+
+  it("does not flag a real assistant message", () => {
+    const failures = checkForbiddenBehavior(
+      ["invalid_assistant_message"],
+      [],
+      [],
+      null,
+      new Set(),
+      "I don't see a food category, but I can show you groceries.",
     );
 
     expect(failures).toEqual([]);

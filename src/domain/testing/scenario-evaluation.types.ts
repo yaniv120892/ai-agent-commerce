@@ -24,6 +24,7 @@ export type Scenario = {
 };
 
 export type ScenarioPlanSummary = {
+  assistantMessage: string | null;
   maxPrice: number | null;
   referencedProductIds: number[];
   searchTerms: string[];
