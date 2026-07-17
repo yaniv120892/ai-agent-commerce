@@ -375,6 +375,62 @@ describe("ChatService", () => {
     );
   });
 
+  it("recovers a post-model persistence failure through one failed-request retry", async () => {
+    const {
+      assistantMessage,
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+    } = createDependencies();
+    conversationRepository.completeAssistantMessage.mockRejectedValueOnce(
+      new Error("PostgreSQL write failed"),
+    );
+    conversationRepository.appendMessageWithPendingReply
+      .mockResolvedValueOnce({
+        assistantMessage,
+        state: "created",
+        userMessageContent: "Find me a phone",
+      })
+      .mockResolvedValueOnce({
+        assistantMessage,
+        state: "retried",
+        userMessageContent: "Find me a phone",
+      });
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      ["smartphones"],
+    );
+    const input = {
+      clientRequestId: "request-id",
+      content: "Find me a phone",
+      conversationId: "conversation-id",
+    };
+
+    const failedResponse = await service.appendMessage(input);
+
+    expect(failedResponse).toMatchObject({
+      error: { code: "PERSISTENCE_UNAVAILABLE" },
+      status: "error",
+    });
+    expect(conversationRepository.failAssistantMessage).toHaveBeenCalledWith({
+      conversationId: "conversation-id",
+      messageId: "assistant-message-id",
+    });
+    vi.clearAllMocks();
+
+    const retriedResponse = await service.appendMessage(input);
+
+    expect(retriedResponse).toMatchObject({ status: "complete" });
+    expect(modelClient.createRetrievalPlan).toHaveBeenCalledOnce();
+    expect(modelClient.createGroundedReply).toHaveBeenCalledOnce();
+    expect(catalogResolver.resolve).toHaveBeenCalledOnce();
+    expect(
+      conversationRepository.appendMessageWithPendingReply,
+    ).toHaveBeenCalledOnce();
+  });
+
   it("uses persisted request content instead of a changed retry body", async () => {
     const {
       assistantMessage,

@@ -302,7 +302,7 @@ export class ChatService {
         status: "complete",
       };
     } catch {
-      return this.createErrorResponse(
+      return this.failAssistantMessage(
         "PERSISTENCE_UNAVAILABLE",
         "Conversation storage is unavailable. Please retry.",
         conversationId,
@@ -314,7 +314,10 @@ export class ChatService {
   private async failAssistantMessage(
     code: Extract<
       ChatErrorCode,
-      "CATALOG_UNAVAILABLE" | "INVALID_RETRIEVAL_PLAN" | "MODEL_UNAVAILABLE"
+      | "CATALOG_UNAVAILABLE"
+      | "INVALID_RETRIEVAL_PLAN"
+      | "MODEL_UNAVAILABLE"
+      | "PERSISTENCE_UNAVAILABLE"
     >,
     message: string,
     conversationId: string,
