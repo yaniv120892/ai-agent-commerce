@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, KeyboardEvent, useState } from "react";
 
 type ChatComposerProperties = {
   disabled: boolean;
@@ -10,9 +10,7 @@ type ChatComposerProperties = {
 export function ChatComposer({ disabled, onSubmit }: ChatComposerProperties) {
   const [content, setContent] = useState("");
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>): void {
-    event.preventDefault();
-
+  function submitMessage(): void {
     const trimmedContent = content.trim();
 
     if (trimmedContent.length === 0 || disabled) {
@@ -21,6 +19,18 @@ export function ChatComposer({ disabled, onSubmit }: ChatComposerProperties) {
 
     onSubmit(trimmedContent);
     setContent("");
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    submitMessage();
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      submitMessage();
+    }
   }
 
   return (
@@ -33,6 +43,7 @@ export function ChatComposer({ disabled, onSubmit }: ChatComposerProperties) {
         id="chat-message"
         name="message"
         onChange={(event) => setContent(event.target.value)}
+        onKeyDown={handleKeyDown}
         placeholder="Ask about products, budgets, or categories"
         rows={3}
         value={content}
