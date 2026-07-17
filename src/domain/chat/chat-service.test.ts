@@ -375,7 +375,7 @@ describe("ChatService", () => {
     );
   });
 
-  it("recovers a post-model persistence failure through one failed-request retry", async () => {
+  it("recovers a post-model persistence failure without a second model pass", async () => {
     const {
       assistantMessage,
       catalogResolver,
@@ -418,7 +418,9 @@ describe("ChatService", () => {
       conversationId: "conversation-id",
       messageId: "assistant-message-id",
     });
-    vi.clearAllMocks();
+    expect(modelClient.createRetrievalPlan).toHaveBeenCalledOnce();
+    expect(modelClient.createGroundedReply).toHaveBeenCalledOnce();
+    expect(catalogResolver.resolve).toHaveBeenCalledOnce();
 
     const retriedResponse = await service.appendMessage(input);
 
@@ -428,7 +430,7 @@ describe("ChatService", () => {
     expect(catalogResolver.resolve).toHaveBeenCalledOnce();
     expect(
       conversationRepository.appendMessageWithPendingReply,
-    ).toHaveBeenCalledOnce();
+    ).toHaveBeenCalledTimes(2);
   });
 
   it("uses persisted request content instead of a changed retry body", async () => {

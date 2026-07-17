@@ -64,7 +64,7 @@ function chatReducer(state: ChatUiState, action: ChatUiAction): ChatUiState {
       }
 
       return {
-        conversation: state.conversation,
+        conversation: action.recoveryConversation ?? state.conversation,
         error: action.error,
         pendingRequest: state.pendingRequest,
         status: "error",
@@ -145,6 +145,21 @@ function createPersistenceError(message: string): ChatError {
   return {
     code: "PERSISTENCE_UNAVAILABLE",
     message,
+  };
+}
+
+function createRecoveryConversation(
+  conversationId: string,
+  content: string,
+): PersistedConversation {
+  const now = new Date().toISOString();
+
+  return {
+    createdAt: now,
+    id: conversationId,
+    messages: [],
+    title: content.slice(0, 60),
+    updatedAt: now,
   };
 }
 
@@ -237,6 +252,21 @@ function parseChatError(payload: unknown): ChatError {
   );
 }
 
+function parseRecoveryConversationId(
+  payload: unknown,
+  error: ChatError,
+): string | null {
+  if (
+    error.code !== "PERSISTENCE_UNAVAILABLE" ||
+    !isRecord(payload) ||
+    typeof payload.conversationId !== "string"
+  ) {
+    return null;
+  }
+
+  return payload.conversationId;
+}
+
 function waitForNextPoll(signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
     const timeoutId = window.setTimeout(finish, pollIntervalMs);
@@ -297,13 +327,14 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
     error: ChatError,
     generation: number,
     signal: AbortSignal,
+    recoveryConversation?: PersistedConversation,
   ): void {
     if (!isActiveRequest(generation, signal)) {
       return;
     }
 
     activeRequestController.current = null;
-    dispatch({ type: "error", error });
+    dispatch({ type: "error", error, recoveryConversation });
   }
 
   function showUnknownConversation(
@@ -447,13 +478,27 @@ export function ChatShell({ initialConversation }: ChatShellProperties) {
 
       if (!response.ok) {
         const error = parseChatError(payload);
+        const recoveryConversationId = parseRecoveryConversationId(
+          payload,
+          error,
+        );
 
         if (error.code === "UNKNOWN_CONVERSATION") {
           showUnknownConversation(generation, signal);
           return;
         }
 
-        showRequestError(error, generation, signal);
+        showRequestError(
+          error,
+          generation,
+          signal,
+          conversationId === undefined && recoveryConversationId !== null
+            ? createRecoveryConversation(
+                recoveryConversationId,
+                request.content,
+              )
+            : undefined,
+        );
         return;
       }
 

@@ -91,6 +91,64 @@ describe("conversation routes", () => {
     });
   });
 
+  it("reuses the initial conversation and model result after its completion write fails", async () => {
+    const completionFailure = vi
+      .spyOn(repository, "completeAssistantMessage")
+      .mockRejectedValueOnce(new Error("PostgreSQL write failed"));
+    const request = {
+      clientRequestId: "00000000-0000-4000-8000-000000000109",
+      content: "Show me a phone.",
+    };
+
+    const failedResponse = await createConversation(
+      new Request("http://localhost/api/conversations", {
+        body: JSON.stringify(request),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      }),
+    );
+
+    expect(failedResponse.status).toBe(503);
+    const failedPayload = await failedResponse.json();
+    expect(failedPayload).toEqual({
+      conversationId: expect.any(String),
+      error: {
+        code: "PERSISTENCE_UNAVAILABLE",
+        message: "Conversation storage is unavailable. Please retry.",
+      },
+    });
+
+    const retryResponse = await appendMessage(
+      new Request("http://localhost/api/conversations/messages", {
+        body: JSON.stringify(request),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      }),
+      {
+        params: Promise.resolve({
+          conversationId: failedPayload.conversationId,
+        }),
+      },
+    );
+
+    expect(retryResponse.status).toBe(200);
+    await expect(retryResponse.json()).resolves.toMatchObject({
+      conversationId: failedPayload.conversationId,
+      status: "complete",
+    });
+    expect(modelClient.createRetrievalPlan).toHaveBeenCalledOnce();
+    expect(modelClient.createGroundedReply).toHaveBeenCalledOnce();
+    expect(completionFailure).toHaveBeenCalledTimes(2);
+    await expect(prisma.conversation.count()).resolves.toBe(1);
+    await expect(
+      prisma.message.count({
+        where: {
+          conversationId: failedPayload.conversationId,
+        },
+      }),
+    ).resolves.toBe(2);
+  });
+
   it("returns 404 when a cleared database no longer has the requested conversation", async () => {
     const response = await getConversation(new Request("http://localhost"), {
       params: Promise.resolve({

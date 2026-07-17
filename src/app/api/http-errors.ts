@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import type { ChatErrorCode, ChatResponse } from "@/domain/chat/types";
 
 type ErrorResponse = {
+  conversationId?: string;
   error: {
     code: string;
     message: string;
@@ -23,10 +24,17 @@ export function jsonError(
   message: string,
   status: number,
   requestId: string,
+  conversationId?: string,
 ): NextResponse<ErrorResponse> {
   console.error("Conversation API request failed", { code, requestId });
 
-  return NextResponse.json({ error: { code, message } }, { status });
+  return NextResponse.json(
+    {
+      ...(conversationId === undefined ? {} : { conversationId }),
+      error: { code, message },
+    },
+    { status },
+  );
 }
 
 export function jsonChatResponse(
@@ -43,6 +51,9 @@ export function jsonChatResponse(
     response.error.message,
     statusByChatErrorCode[response.error.code],
     requestId,
+    response.error.code === "PERSISTENCE_UNAVAILABLE"
+      ? (response.conversationId ?? undefined)
+      : undefined,
   );
 }
 
