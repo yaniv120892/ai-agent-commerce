@@ -9,7 +9,7 @@ export function MessageList({ messages }: MessageListProperties) {
   if (messages.length === 0) {
     return (
       <section aria-label="Conversation" className="empty-conversation">
-        <h1>How can I help you shop?</h1>
+        <h2>How can I help you shop?</h2>
         <p>Tell me what you need, your budget, or a product category.</p>
       </section>
     );

@@ -7,11 +7,13 @@ import type { ConversationSummary } from "./types";
 
 type ConversationSidebarProperties = {
   activeConversationId: string | null;
+  onConversationNavigate: () => void;
   onNewConversation: () => void;
 };
 
 export function ConversationSidebar({
   activeConversationId,
+  onConversationNavigate,
   onNewConversation,
 }: ConversationSidebarProperties) {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -63,6 +65,7 @@ export function ConversationSidebar({
                   conversation.id === activeConversationId ? "page" : undefined
                 }
                 href={`/conversations/${conversation.id}`}
+                onClick={onConversationNavigate}
               >
                 {conversation.title}
               </Link>

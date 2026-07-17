@@ -46,9 +46,18 @@ export type ChatUiState =
 export type ChatUiAction =
   | { type: "send"; request: PendingRequest }
   | {
+      type: "pending";
+      conversation: PersistedConversation;
+      request: PendingRequest;
+    }
+  | {
       type: "complete";
       conversation: PersistedConversation;
     }
   | { type: "error"; error: ChatError }
   | { type: "unknownConversation" }
-  | { type: "newConversation" };
+  | { type: "newConversation" }
+  | {
+      type: "synchronize";
+      conversation: PersistedConversation | null;
+    };

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -38,6 +38,21 @@ const conversation: PersistedConversation = {
   title: "Phone shopping",
   updatedAt: "2026-07-17T10:00:01.000Z",
 };
+
+function jsonResponse(payload: unknown, status = 200): Response {
+  return new Response(JSON.stringify(payload), { status });
+}
+
+function createAssistantMessage(content: string) {
+  return {
+    content,
+    createdAt: "2026-07-17T10:01:00.000Z",
+    id: "00000000-0000-4000-8000-000000000003",
+    productCards: [],
+    role: "assistant" as const,
+    status: "complete" as const,
+  };
+}
 
 describe("ChatShell", () => {
   beforeEach(() => {
@@ -101,5 +116,218 @@ describe("ChatShell", () => {
     expect(
       await screen.findByRole("button", { name: "Start a new conversation" }),
     ).toBeVisible();
+  });
+
+  it("displays a submitted user message in an existing conversation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, options?: RequestInit) => {
+        if (options?.method === "POST") {
+          return Promise.resolve(
+            jsonResponse({
+              assistantMessage: createAssistantMessage(
+                "Here is another phone.",
+              ),
+              conversationId: conversation.id,
+              status: "complete",
+            }),
+          );
+        }
+
+        return Promise.resolve(jsonResponse([]));
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<ChatShell initialConversation={conversation} />);
+    await user.type(screen.getByLabelText("Message"), "Show another phone");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(await screen.findByText("Show another phone")).toBeVisible();
+    expect(await screen.findByText("Here is another phone.")).toBeVisible();
+  });
+
+  it("synchronizes the shell when the server-provided conversation changes", () => {
+    const { rerender } = render(
+      <ChatShell initialConversation={conversation} />,
+    );
+    const nextConversation: PersistedConversation = {
+      ...conversation,
+      id: "00000000-0000-4000-8000-000000000004",
+      messages: [
+        {
+          ...conversation.messages[0],
+          content: "A different conversation.",
+          id: "00000000-0000-4000-8000-000000000005",
+          productCards: [],
+        },
+      ],
+      title: "Different shopping",
+    };
+
+    rerender(<ChatShell initialConversation={nextConversation} />);
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Different shopping" }),
+    ).toBeVisible();
+    expect(screen.getByText("A different conversation.")).toBeVisible();
+    expect(
+      screen.queryByText("I found a phone that matches your budget."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the composer disabled while a pending response is reconciled", async () => {
+    let resolveConversation: ((response: Response) => void) | undefined;
+    const conversationResponse = new Promise<Response>((resolve) => {
+      resolveConversation = resolve;
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, options?: RequestInit) => {
+        if (options?.method === "POST") {
+          return Promise.resolve(
+            jsonResponse({
+              assistantMessage: {
+                ...createAssistantMessage(""),
+                status: "pending",
+              },
+              conversationId: conversation.id,
+              status: "pending",
+            }),
+          );
+        }
+
+        if (url.includes(`/${conversation.id}`)) {
+          return conversationResponse;
+        }
+
+        return Promise.resolve(jsonResponse([]));
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<ChatShell initialConversation={conversation} />);
+    await user.type(screen.getByLabelText("Message"), "Show another phone");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(await screen.findByText("Finding a response…")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Send" })).toBeDisabled();
+
+    resolveConversation?.(
+      jsonResponse({
+        ...conversation,
+        messages: [
+          ...conversation.messages,
+          {
+            ...createAssistantMessage("The completed recommendation."),
+          },
+        ],
+      }),
+    );
+
+    expect(
+      await screen.findByText("The completed recommendation."),
+    ).toBeVisible();
+    await waitFor(() => {
+      expect(screen.getByLabelText("Message")).toBeEnabled();
+    });
+  });
+
+  it("ignores a stale response after starting a new conversation", async () => {
+    let resolveResponse: ((response: Response) => void) | undefined;
+    let requestSignal: AbortSignal | undefined;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, options?: RequestInit) => {
+        if (options?.method === "POST") {
+          requestSignal = options.signal ?? undefined;
+          return pendingResponse;
+        }
+
+        return Promise.resolve(jsonResponse([]));
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<ChatShell initialConversation={conversation} />);
+    await user.type(screen.getByLabelText("Message"), "Show another phone");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await user.click(screen.getByRole("button", { name: "New conversation" }));
+
+    expect(requestSignal?.aborted).toBe(true);
+
+    resolveResponse?.(
+      jsonResponse({
+        assistantMessage: createAssistantMessage("Stale recommendation."),
+        conversationId: conversation.id,
+        status: "complete",
+      }),
+    );
+
+    await Promise.resolve();
+
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith("/");
+    expect(screen.queryByText("Stale recommendation.")).not.toBeInTheDocument();
+  });
+
+  it("aborts an in-flight request when navigating to a recent conversation", async () => {
+    let requestSignal: AbortSignal | undefined;
+    const pendingResponse = new Promise<Response>(() => undefined);
+    const nextConversationId = "00000000-0000-4000-8000-000000000007";
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, options?: RequestInit) => {
+        if (options?.method === "POST") {
+          requestSignal = options.signal ?? undefined;
+          return pendingResponse;
+        }
+
+        if (url.includes("?limit=")) {
+          return Promise.resolve(
+            jsonResponse([
+              {
+                createdAt: "2026-07-17T10:02:00.000Z",
+                id: nextConversationId,
+                title: "Recent shopping",
+                updatedAt: "2026-07-17T10:02:00.000Z",
+              },
+            ]),
+          );
+        }
+
+        return Promise.resolve(jsonResponse([]));
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<ChatShell initialConversation={conversation} />);
+    await user.type(screen.getByLabelText("Message"), "Show another phone");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    const conversationLink = await screen.findByRole("link", {
+      name: "Recent shopping",
+    });
+    conversationLink.addEventListener(
+      "click",
+      (event) => event.preventDefault(),
+      {
+        once: true,
+      },
+    );
+    await user.click(conversationLink);
+
+    expect(requestSignal?.aborted).toBe(true);
+  });
+
+  it("renders one page heading for a new conversation", () => {
+    render(<ChatShell initialConversation={null} />);
+
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
   });
 });
