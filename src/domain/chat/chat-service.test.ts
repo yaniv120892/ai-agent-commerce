@@ -51,6 +51,7 @@ function createMessage(
   return {
     content: "Find me a phone",
     createdAt: "2026-07-16T10:00:00.000Z",
+    focusedProductId: null,
     id: "user-message-id",
     lastCategorySlug: null,
     lastSearchTerms: [],
@@ -92,6 +93,7 @@ function createDependencies() {
     completeAssistantMessage: vi.fn().mockImplementation(async (input) => ({
       ...assistantMessage,
       content: input.content,
+      focusedProductId: input.focusedProductId,
       lastCategorySlug: input.lastCategorySlug,
       lastSearchTerms: input.lastSearchTerms,
       productCards: input.productCards,
@@ -182,6 +184,7 @@ describe("ChatService", () => {
     ).toHaveBeenCalledWith({
       content: "Phone Ultra is a match.",
       conversationId: "conversation-id",
+      focusedProductId: null,
       lastCategorySlug: null,
       lastSearchTerms: ["phone"],
       messageId: "assistant-message-id",
@@ -548,6 +551,7 @@ describe("ChatService", () => {
       expect.objectContaining({
         activeContext: {
           categorySlug: "smartphones",
+          focusedProductId: null,
           lastAttemptedSearch: null,
           lastResolvedUserMessage: null,
         },
@@ -595,6 +599,7 @@ describe("ChatService", () => {
       expect.objectContaining({
         activeContext: {
           categorySlug: "smartphones",
+          focusedProductId: null,
           lastAttemptedSearch: null,
           lastResolvedUserMessage: null,
         },
@@ -639,6 +644,57 @@ describe("ChatService", () => {
     );
   });
 
+  it("records the focused product when a product_detail turn resolves its referenced product", async () => {
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
+    const history = [
+      createMessage({
+        content: "Tell me about the Orbit Phone Mini",
+        id: "message-0",
+      }),
+      createMessage({
+        content: "Here is the Orbit Phone Mini.",
+        id: "message-1",
+        productCards: [{ ...productCards[0], productId: 101 }],
+        role: "assistant",
+      }),
+    ];
+    conversationRepository.getConversation.mockResolvedValue(
+      createConversation(history),
+    );
+    vi.mocked(modelClient.createRetrievalPlan).mockResolvedValue(
+      createPlan({
+        intent: "product_detail",
+        referencedProductIds: [101],
+        searchTerms: [],
+      }),
+    );
+    catalogResolver.resolve.mockResolvedValue({
+      productCards: [{ ...productCards[0], productId: 101 }],
+    });
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      planRepairService,
+    );
+
+    await service.appendMessage({
+      clientRequestId: "request-id",
+      requestId: "request-id",
+      content: "size",
+      conversationId: "conversation-id",
+    });
+
+    expect(
+      conversationRepository.completeAssistantMessage,
+    ).toHaveBeenCalledWith(expect.objectContaining({ focusedProductId: 101 }));
+  });
+
   it("surfaces the previous zero-result search as lastAttemptedSearch for the next turn", async () => {
     const {
       catalogResolver,
@@ -677,6 +733,7 @@ describe("ChatService", () => {
       expect.objectContaining({
         activeContext: {
           categorySlug: null,
+          focusedProductId: null,
           lastAttemptedSearch: {
             categorySlug: null,
             searchTerms: ["purple", "phone"],
@@ -1277,6 +1334,7 @@ describe("OpenAIModelClient", () => {
     const plan = await client.createRetrievalPlan({
       activeContext: {
         categorySlug: "smartphones",
+        focusedProductId: null,
         lastAttemptedSearch: null,
         lastResolvedUserMessage: null,
       },
@@ -1372,6 +1430,7 @@ describe("OpenAIModelClient", () => {
       client.createRetrievalPlan({
         activeContext: {
           categorySlug: null,
+          focusedProductId: null,
           lastAttemptedSearch: null,
           lastResolvedUserMessage: null,
         },
