@@ -51,11 +51,13 @@ function createMessage(
   return {
     content: "Find me a phone",
     createdAt: "2026-07-16T10:00:00.000Z",
+    focusedProductId: null,
     id: "user-message-id",
     lastCategorySlug: null,
     lastSearchTerms: [],
     productCards: [],
     retrievalAnchorMessage: null,
+    retrievalExhausted: false,
     role: "user",
     status: "complete",
     ...overrides,
@@ -92,10 +94,12 @@ function createDependencies() {
     completeAssistantMessage: vi.fn().mockImplementation(async (input) => ({
       ...assistantMessage,
       content: input.content,
+      focusedProductId: input.focusedProductId,
       lastCategorySlug: input.lastCategorySlug,
       lastSearchTerms: input.lastSearchTerms,
       productCards: input.productCards,
       retrievalAnchorMessage: input.retrievalAnchorMessage,
+      retrievalExhausted: input.retrievalExhausted,
       status: "complete",
     })),
     createConversationWithPendingReply: vi
@@ -108,7 +112,7 @@ function createDependencies() {
   };
   const catalogResolver = {
     listAllowedCategorySlugs: vi.fn().mockResolvedValue(["smartphones"]),
-    resolve: vi.fn().mockResolvedValue({ productCards }),
+    resolve: vi.fn().mockResolvedValue({ poolExhausted: false, productCards }),
   };
   const modelClient: ModelClient = {
     createGroundedReply: vi.fn().mockResolvedValue("Phone Ultra is a match."),
@@ -182,11 +186,13 @@ describe("ChatService", () => {
     ).toHaveBeenCalledWith({
       content: "Phone Ultra is a match.",
       conversationId: "conversation-id",
+      focusedProductId: null,
       lastCategorySlug: null,
       lastSearchTerms: ["phone"],
       messageId: "assistant-message-id",
       productCards,
       retrievalAnchorMessage: "Find me a phone",
+      retrievalExhausted: false,
     });
     expect(catalogResolver.resolve).toHaveBeenCalledWith(
       { ...createPlan(), validated: true },
@@ -548,6 +554,8 @@ describe("ChatService", () => {
       expect.objectContaining({
         activeContext: {
           categorySlug: "smartphones",
+          continuationExhausted: false,
+          focusedProductId: null,
           lastAttemptedSearch: null,
           lastResolvedUserMessage: null,
         },
@@ -595,6 +603,8 @@ describe("ChatService", () => {
       expect.objectContaining({
         activeContext: {
           categorySlug: "smartphones",
+          continuationExhausted: false,
+          focusedProductId: null,
           lastAttemptedSearch: null,
           lastResolvedUserMessage: null,
         },
@@ -615,7 +625,10 @@ describe("ChatService", () => {
         searchTerms: ["purple", "phone"],
       }),
     );
-    catalogResolver.resolve.mockResolvedValue({ productCards: [] });
+    catalogResolver.resolve.mockResolvedValue({
+      poolExhausted: false,
+      productCards: [],
+    });
     const service = new ChatService(
       conversationRepository,
       catalogResolver,
@@ -636,6 +649,89 @@ describe("ChatService", () => {
         lastCategorySlug: "smartphones",
         lastSearchTerms: ["purple", "phone"],
       }),
+    );
+  });
+
+  it("records the focused product when a product_detail turn resolves its referenced product", async () => {
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
+    const history = [
+      createMessage({
+        content: "Tell me about the Orbit Phone Mini",
+        id: "message-0",
+      }),
+      createMessage({
+        content: "Here is the Orbit Phone Mini.",
+        id: "message-1",
+        productCards: [{ ...productCards[0], productId: 101 }],
+        role: "assistant",
+      }),
+    ];
+    conversationRepository.getConversation.mockResolvedValue(
+      createConversation(history),
+    );
+    vi.mocked(modelClient.createRetrievalPlan).mockResolvedValue(
+      createPlan({
+        intent: "product_detail",
+        referencedProductIds: [101],
+        searchTerms: [],
+      }),
+    );
+    catalogResolver.resolve.mockResolvedValue({
+      poolExhausted: false,
+      productCards: [{ ...productCards[0], productId: 101 }],
+    });
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      planRepairService,
+    );
+
+    await service.appendMessage({
+      clientRequestId: "request-id",
+      requestId: "request-id",
+      content: "size",
+      conversationId: "conversation-id",
+    });
+
+    expect(
+      conversationRepository.completeAssistantMessage,
+    ).toHaveBeenCalledWith(expect.objectContaining({ focusedProductId: 101 }));
+  });
+
+  it("persists retrievalExhausted when the resolver reports the pool is fully shown", async () => {
+    const {
+      catalogResolver,
+      conversationRepository,
+      modelClient,
+      planRepairService,
+    } = createDependencies();
+    catalogResolver.resolve.mockResolvedValue({
+      poolExhausted: true,
+      productCards,
+    });
+    const service = new ChatService(
+      conversationRepository,
+      catalogResolver,
+      modelClient,
+      planRepairService,
+    );
+
+    await service.startConversation({
+      clientRequestId: "request-id",
+      requestId: "request-id",
+      content: "Show me phones",
+    });
+
+    expect(
+      conversationRepository.completeAssistantMessage,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({ retrievalExhausted: true }),
     );
   });
 
@@ -677,6 +773,8 @@ describe("ChatService", () => {
       expect.objectContaining({
         activeContext: {
           categorySlug: null,
+          continuationExhausted: false,
+          focusedProductId: null,
           lastAttemptedSearch: {
             categorySlug: null,
             searchTerms: ["purple", "phone"],
@@ -1176,6 +1274,7 @@ describe("ChatService", () => {
         id: "message-1",
         productCards: [{ ...productCards[0], productId: 101 }],
         retrievalAnchorMessage: "Show me phones",
+        retrievalExhausted: false,
         role: "assistant",
       }),
     ];
@@ -1277,6 +1376,8 @@ describe("OpenAIModelClient", () => {
     const plan = await client.createRetrievalPlan({
       activeContext: {
         categorySlug: "smartphones",
+        continuationExhausted: false,
+        focusedProductId: null,
         lastAttemptedSearch: null,
         lastResolvedUserMessage: null,
       },
@@ -1372,6 +1473,8 @@ describe("OpenAIModelClient", () => {
       client.createRetrievalPlan({
         activeContext: {
           categorySlug: null,
+          continuationExhausted: false,
+          focusedProductId: null,
           lastAttemptedSearch: null,
           lastResolvedUserMessage: null,
         },

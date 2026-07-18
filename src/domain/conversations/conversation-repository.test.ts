@@ -167,9 +167,11 @@ describe("ConversationRepository", () => {
       conversationId: "conversation-id",
       messageId: "assistant-message-id",
       content: "Here are two options.",
+      focusedProductId: 101,
       lastCategorySlug: null,
       lastSearchTerms: ["first", "second"],
       retrievalAnchorMessage: "Show me two options",
+      retrievalExhausted: true,
       productCards: [
         {
           productId: 101,
@@ -196,9 +198,11 @@ describe("ConversationRepository", () => {
     expect(message.updateMany).toHaveBeenCalledWith({
       data: {
         content: "Here are two options.",
+        focusedProductId: 101,
         lastCategorySlug: null,
         lastSearchTerms: ["first", "second"],
         retrievalAnchorMessage: "Show me two options",
+        retrievalExhausted: true,
         status: "complete",
       },
       where: {

@@ -19,6 +19,7 @@ const conversation: PersistedConversation = {
     {
       content: "I found a phone that matches your budget.",
       createdAt: "2026-07-17T10:00:01.000Z",
+      focusedProductId: null,
       id: "00000000-0000-4000-8000-000000000002",
       lastCategorySlug: null,
       lastSearchTerms: [],
@@ -34,6 +35,7 @@ const conversation: PersistedConversation = {
         },
       ],
       retrievalAnchorMessage: null,
+      retrievalExhausted: false,
       role: "assistant",
       status: "complete",
     },
@@ -53,6 +55,7 @@ function createAssistantMessage(content: string) {
     id: "00000000-0000-4000-8000-000000000003",
     productCards: [],
     retrievalAnchorMessage: null,
+    retrievalExhausted: false,
     role: "assistant" as const,
     status: "complete" as const,
   };

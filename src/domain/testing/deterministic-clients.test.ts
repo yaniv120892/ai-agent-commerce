@@ -28,6 +28,8 @@ describe("DeterministicModelClient continuation handling", () => {
       createInput({
         activeContext: {
           categorySlug: "smartphones",
+          continuationExhausted: false,
+          focusedProductId: null,
           lastAttemptedSearch: null,
           lastResolvedUserMessage: "show phones under $400",
         },
@@ -51,6 +53,8 @@ describe("DeterministicModelClient continuation handling", () => {
       createInput({
         activeContext: {
           categorySlug: "smartphones",
+          continuationExhausted: false,
+          focusedProductId: null,
           lastAttemptedSearch: null,
           lastResolvedUserMessage: "smartphones",
         },
@@ -75,6 +79,8 @@ describe("DeterministicModelClient continuation handling", () => {
       createInput({
         activeContext: {
           categorySlug: "smartphones",
+          continuationExhausted: false,
+          focusedProductId: null,
           lastAttemptedSearch: null,
           lastResolvedUserMessage: null,
         },

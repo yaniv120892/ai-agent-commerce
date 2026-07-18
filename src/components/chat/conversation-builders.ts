@@ -75,11 +75,13 @@ function createLocalUserMessage(
   return {
     content,
     createdAt: new Date().toISOString(),
+    focusedProductId: null,
     id: requestId,
     lastCategorySlug: null,
     lastSearchTerms: [],
     productCards: [],
     retrievalAnchorMessage: null,
+    retrievalExhausted: false,
     role: "user",
     status: "complete",
   };
@@ -89,11 +91,13 @@ function createPendingAssistantMessage(requestId: string): PersistedMessage {
   return {
     content: "",
     createdAt: new Date().toISOString(),
+    focusedProductId: null,
     id: `${requestId}-pending`,
     lastCategorySlug: null,
     lastSearchTerms: [],
     productCards: [],
     retrievalAnchorMessage: null,
+    retrievalExhausted: false,
     role: "assistant",
     status: "pending",
   };

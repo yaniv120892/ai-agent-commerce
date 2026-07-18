@@ -10,7 +10,12 @@ const sampleCompletion: ReplyCompletion = {
   content: "Phone Ultra is a match.",
   productCards: [],
   retrievalAnchorMessage: "Show me a phone.",
-  retrievalSummary: { categorySlug: null, searchTerms: ["phone"] },
+  retrievalSummary: {
+    categorySlug: null,
+    focusedProductId: null,
+    retrievalExhausted: false,
+    searchTerms: ["phone"],
+  },
 };
 
 describe("RedisReplyCompletionCache", () => {

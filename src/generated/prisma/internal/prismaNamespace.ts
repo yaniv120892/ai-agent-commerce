@@ -689,6 +689,8 @@ export const MessageScalarFieldEnum = {
   retrievalAnchorMessage: 'retrievalAnchorMessage',
   lastSearchTerms: 'lastSearchTerms',
   lastCategorySlug: 'lastCategorySlug',
+  focusedProductId: 'focusedProductId',
+  retrievalExhausted: 'retrievalExhausted',
   createdAt: 'createdAt'
 } as const
 
@@ -807,6 +809,13 @@ export type EnumMessageStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$Pr
  * Reference to a field of type 'MessageStatus[]'
  */
 export type ListEnumMessageStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MessageStatus[]'>
+    
+
+
+/**
+ * Reference to a field of type 'Boolean'
+ */
+export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
 
 
