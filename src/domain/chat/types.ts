@@ -14,6 +14,7 @@ export type LastAttemptedSearch = {
 export type ActiveRetrievalContext = {
   categorySlug: string | null;
   focusedProductId: number | null;
+  continuationExhausted: boolean;
   lastAttemptedSearch: LastAttemptedSearch | null;
   lastResolvedUserMessage: string | null;
 };
@@ -22,6 +23,7 @@ export type CompletedRetrievalSummary = {
   searchTerms: string[];
   categorySlug: string | null;
   focusedProductId: number | null;
+  retrievalExhausted: boolean;
 };
 
 export type PlanRepairContext = {
