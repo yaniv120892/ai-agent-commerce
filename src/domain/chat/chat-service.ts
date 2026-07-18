@@ -294,7 +294,7 @@ export class ChatService {
         assistantMessage,
         plan.assistantMessage,
         [],
-        { categorySlug: null, searchTerms: [] },
+        { categorySlug: null, focusedProductId: null, searchTerms: [] },
         null,
       );
     }
@@ -346,9 +346,24 @@ export class ChatService {
       assistantMessage,
       content,
       productCards,
-      { categorySlug: plan.categorySlug, searchTerms: plan.searchTerms },
+      {
+        categorySlug: plan.categorySlug,
+        focusedProductId: this.computeFocusedProductId(plan),
+        searchTerms: plan.searchTerms,
+      },
       this.computeRetrievalAnchorMessage(plan, userMessage, messageContext),
     );
+  }
+
+  // The single product a turn puts in focus: a product_detail turn is "about"
+  // its one referenced product, so a bare attribute follow-up ("size") on the
+  // next turn can resolve against it. Every other intent clears the focus.
+  private computeFocusedProductId(plan: RetrievalPlan): number | null {
+    if (plan.intent !== "product_detail") {
+      return null;
+    }
+
+    return plan.referencedProductIds[0] ?? null;
   }
 
   private computeRetrievalAnchorMessage(
@@ -408,6 +423,7 @@ export class ChatService {
         await this.conversationRepository.completeAssistantMessage({
           content,
           conversationId,
+          focusedProductId: retrievalSummary.focusedProductId,
           lastCategorySlug: retrievalSummary.categorySlug,
           lastSearchTerms: retrievalSummary.searchTerms,
           messageId: assistantMessage.id,

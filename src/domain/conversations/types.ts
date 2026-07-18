@@ -20,6 +20,7 @@ export type PersistedMessage = {
   productCards: ProductCardSnapshot[];
   lastSearchTerms: string[];
   lastCategorySlug: string | null;
+  focusedProductId: number | null;
   retrievalAnchorMessage: string | null;
 };
 
