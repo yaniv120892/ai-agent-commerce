@@ -23,11 +23,13 @@ function createMessage(
   return {
     content: "Find me a phone",
     createdAt: "2026-07-16T10:00:00.000Z",
+    focusedProductId: null,
     id: "message-id",
     lastCategorySlug: null,
     lastSearchTerms: [],
     productCards: [],
     retrievalAnchorMessage: null,
+    retrievalExhausted: false,
     role: "user",
     status: "complete",
     ...overrides,
@@ -58,6 +60,8 @@ describe("deriveActiveContext", () => {
 
     expect(deriveActiveContext(history)).toEqual({
       categorySlug: "smartphones",
+      continuationExhausted: false,
+      focusedProductId: null,
       lastAttemptedSearch: null,
       lastResolvedUserMessage: null,
     });
@@ -77,6 +81,8 @@ describe("deriveActiveContext", () => {
 
     expect(deriveActiveContext(history)).toEqual({
       categorySlug: "smartphones",
+      continuationExhausted: false,
+      focusedProductId: null,
       lastAttemptedSearch: null,
       lastResolvedUserMessage: null,
     });
@@ -95,6 +101,8 @@ describe("deriveActiveContext", () => {
 
     expect(deriveActiveContext(history)).toEqual({
       categorySlug: "smartphones",
+      continuationExhausted: false,
+      focusedProductId: null,
       lastAttemptedSearch: null,
       lastResolvedUserMessage: null,
     });
@@ -117,6 +125,8 @@ describe("deriveActiveContext", () => {
 
     expect(deriveActiveContext(history)).toEqual({
       categorySlug: "smartphones",
+      continuationExhausted: false,
+      focusedProductId: null,
       lastAttemptedSearch: null,
       lastResolvedUserMessage: null,
     });
@@ -134,6 +144,8 @@ describe("deriveActiveContext", () => {
 
     expect(deriveActiveContext(history)).toEqual({
       categorySlug: null,
+      continuationExhausted: false,
+      focusedProductId: null,
       lastAttemptedSearch: {
         categorySlug: null,
         searchTerms: ["purple", "phone"],
@@ -154,6 +166,8 @@ describe("deriveActiveContext", () => {
 
     expect(deriveActiveContext(history)).toEqual({
       categorySlug: null,
+      continuationExhausted: false,
+      focusedProductId: null,
       lastAttemptedSearch: { categorySlug: "mens-shoes", searchTerms: [] },
       lastResolvedUserMessage: null,
     });
@@ -177,12 +191,15 @@ describe("deriveActiveContext", () => {
       createMessage({
         productCards: [{ ...productCard, productId: 101 }],
         retrievalAnchorMessage: "Show me phones",
+        retrievalExhausted: false,
         role: "assistant",
       }),
     ];
 
     expect(deriveActiveContext(history)).toEqual({
       categorySlug: "smartphones",
+      continuationExhausted: false,
+      focusedProductId: null,
       lastAttemptedSearch: null,
       lastResolvedUserMessage: "Show me phones",
     });
@@ -205,5 +222,69 @@ describe("deriveActiveContext", () => {
     ];
 
     expect(deriveActiveContext(history)).toBeNull();
+  });
+
+  it("surfaces the focused product from a product_detail turn so a bare follow-up can resolve against it", () => {
+    const history = [
+      createMessage({
+        content: "Tell me about the Orbit Phone Mini",
+        role: "user",
+      }),
+      createMessage({
+        focusedProductId: 101,
+        productCards: [{ ...productCard, productId: 101 }],
+        role: "assistant",
+      }),
+    ];
+
+    expect(deriveActiveContext(history)).toEqual({
+      categorySlug: "smartphones",
+      continuationExhausted: false,
+      focusedProductId: 101,
+      lastAttemptedSearch: null,
+      lastResolvedUserMessage: null,
+    });
+  });
+
+  it("clears the focused product once a later search turn takes over", () => {
+    const history = [
+      createMessage({
+        focusedProductId: 101,
+        productCards: [{ ...productCard, productId: 101 }],
+        role: "assistant",
+      }),
+      createMessage({ content: "Actually show me laptops", role: "user" }),
+      createMessage({
+        focusedProductId: null,
+        productCards: [{ ...productCard, category: "laptops", productId: 201 }],
+        role: "assistant",
+      }),
+    ];
+
+    expect(deriveActiveContext(history)).toEqual({
+      categorySlug: "laptops",
+      continuationExhausted: false,
+      focusedProductId: null,
+      lastAttemptedSearch: null,
+      lastResolvedUserMessage: null,
+    });
+  });
+
+  it("surfaces continuationExhausted when the last card-bearing turn showed its whole pool", () => {
+    const history = [
+      createMessage({
+        productCards: [{ ...productCard, productId: 101 }],
+        retrievalExhausted: true,
+        role: "assistant",
+      }),
+    ];
+
+    expect(deriveActiveContext(history)).toEqual({
+      categorySlug: "smartphones",
+      continuationExhausted: true,
+      focusedProductId: null,
+      lastAttemptedSearch: null,
+      lastResolvedUserMessage: null,
+    });
   });
 });

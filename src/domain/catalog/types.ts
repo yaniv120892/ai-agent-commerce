@@ -52,6 +52,9 @@ export type ValidatedRetrievalPlan = RetrievalPlan & {
 
 export type ResolvedCatalogResult = {
   productCards: ProductCardSnapshot[];
+  // True when a search/browse_category turn has now shown its entire eligible
+  // candidate pool, so a later "show me more" has nothing further to page.
+  poolExhausted: boolean;
 };
 
 export interface CatalogClientContract {

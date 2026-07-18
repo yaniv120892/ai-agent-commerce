@@ -28,10 +28,12 @@ export type AggregateMessage = {
 
 export type MessageAvgAggregateOutputType = {
   sequence: number | null
+  focusedProductId: number | null
 }
 
 export type MessageSumAggregateOutputType = {
   sequence: number | null
+  focusedProductId: number | null
 }
 
 export type MessageMinAggregateOutputType = {
@@ -45,6 +47,8 @@ export type MessageMinAggregateOutputType = {
   status: $Enums.MessageStatus | null
   retrievalAnchorMessage: string | null
   lastCategorySlug: string | null
+  focusedProductId: number | null
+  retrievalExhausted: boolean | null
   createdAt: Date | null
 }
 
@@ -59,6 +63,8 @@ export type MessageMaxAggregateOutputType = {
   status: $Enums.MessageStatus | null
   retrievalAnchorMessage: string | null
   lastCategorySlug: string | null
+  focusedProductId: number | null
+  retrievalExhausted: boolean | null
   createdAt: Date | null
 }
 
@@ -74,6 +80,8 @@ export type MessageCountAggregateOutputType = {
   retrievalAnchorMessage: number
   lastSearchTerms: number
   lastCategorySlug: number
+  focusedProductId: number
+  retrievalExhausted: number
   createdAt: number
   _all: number
 }
@@ -81,10 +89,12 @@ export type MessageCountAggregateOutputType = {
 
 export type MessageAvgAggregateInputType = {
   sequence?: true
+  focusedProductId?: true
 }
 
 export type MessageSumAggregateInputType = {
   sequence?: true
+  focusedProductId?: true
 }
 
 export type MessageMinAggregateInputType = {
@@ -98,6 +108,8 @@ export type MessageMinAggregateInputType = {
   status?: true
   retrievalAnchorMessage?: true
   lastCategorySlug?: true
+  focusedProductId?: true
+  retrievalExhausted?: true
   createdAt?: true
 }
 
@@ -112,6 +124,8 @@ export type MessageMaxAggregateInputType = {
   status?: true
   retrievalAnchorMessage?: true
   lastCategorySlug?: true
+  focusedProductId?: true
+  retrievalExhausted?: true
   createdAt?: true
 }
 
@@ -127,6 +141,8 @@ export type MessageCountAggregateInputType = {
   retrievalAnchorMessage?: true
   lastSearchTerms?: true
   lastCategorySlug?: true
+  focusedProductId?: true
+  retrievalExhausted?: true
   createdAt?: true
   _all?: true
 }
@@ -229,6 +245,8 @@ export type MessageGroupByOutputType = {
   retrievalAnchorMessage: string | null
   lastSearchTerms: string[]
   lastCategorySlug: string | null
+  focusedProductId: number | null
+  retrievalExhausted: boolean
   createdAt: Date
   _count: MessageCountAggregateOutputType | null
   _avg: MessageAvgAggregateOutputType | null
@@ -267,6 +285,8 @@ export type MessageWhereInput = {
   retrievalAnchorMessage?: Prisma.StringNullableFilter<"Message"> | string | null
   lastSearchTerms?: Prisma.StringNullableListFilter<"Message">
   lastCategorySlug?: Prisma.StringNullableFilter<"Message"> | string | null
+  focusedProductId?: Prisma.IntNullableFilter<"Message"> | number | null
+  retrievalExhausted?: Prisma.BoolFilter<"Message"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
   conversation?: Prisma.XOR<Prisma.ConversationScalarRelationFilter, Prisma.ConversationWhereInput>
   replyToMessage?: Prisma.XOR<Prisma.MessageNullableScalarRelationFilter, Prisma.MessageWhereInput> | null
@@ -286,6 +306,8 @@ export type MessageOrderByWithRelationInput = {
   retrievalAnchorMessage?: Prisma.SortOrderInput | Prisma.SortOrder
   lastSearchTerms?: Prisma.SortOrder
   lastCategorySlug?: Prisma.SortOrderInput | Prisma.SortOrder
+  focusedProductId?: Prisma.SortOrderInput | Prisma.SortOrder
+  retrievalExhausted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   conversation?: Prisma.ConversationOrderByWithRelationInput
   replyToMessage?: Prisma.MessageOrderByWithRelationInput
@@ -310,6 +332,8 @@ export type MessageWhereUniqueInput = Prisma.AtLeast<{
   retrievalAnchorMessage?: Prisma.StringNullableFilter<"Message"> | string | null
   lastSearchTerms?: Prisma.StringNullableListFilter<"Message">
   lastCategorySlug?: Prisma.StringNullableFilter<"Message"> | string | null
+  focusedProductId?: Prisma.IntNullableFilter<"Message"> | number | null
+  retrievalExhausted?: Prisma.BoolFilter<"Message"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
   conversation?: Prisma.XOR<Prisma.ConversationScalarRelationFilter, Prisma.ConversationWhereInput>
   replyToMessage?: Prisma.XOR<Prisma.MessageNullableScalarRelationFilter, Prisma.MessageWhereInput> | null
@@ -329,6 +353,8 @@ export type MessageOrderByWithAggregationInput = {
   retrievalAnchorMessage?: Prisma.SortOrderInput | Prisma.SortOrder
   lastSearchTerms?: Prisma.SortOrder
   lastCategorySlug?: Prisma.SortOrderInput | Prisma.SortOrder
+  focusedProductId?: Prisma.SortOrderInput | Prisma.SortOrder
+  retrievalExhausted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.MessageCountOrderByAggregateInput
   _avg?: Prisma.MessageAvgOrderByAggregateInput
@@ -352,6 +378,8 @@ export type MessageScalarWhereWithAggregatesInput = {
   retrievalAnchorMessage?: Prisma.StringNullableWithAggregatesFilter<"Message"> | string | null
   lastSearchTerms?: Prisma.StringNullableListFilter<"Message">
   lastCategorySlug?: Prisma.StringNullableWithAggregatesFilter<"Message"> | string | null
+  focusedProductId?: Prisma.IntNullableWithAggregatesFilter<"Message"> | number | null
+  retrievalExhausted?: Prisma.BoolWithAggregatesFilter<"Message"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Message"> | Date | string
 }
 
@@ -365,6 +393,8 @@ export type MessageCreateInput = {
   retrievalAnchorMessage?: string | null
   lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
   lastCategorySlug?: string | null
+  focusedProductId?: number | null
+  retrievalExhausted?: boolean
   createdAt?: Date | string
   conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
   replyToMessage?: Prisma.MessageCreateNestedOneWithoutAssistantReplyInput
@@ -384,6 +414,8 @@ export type MessageUncheckedCreateInput = {
   retrievalAnchorMessage?: string | null
   lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
   lastCategorySlug?: string | null
+  focusedProductId?: number | null
+  retrievalExhausted?: boolean
   createdAt?: Date | string
   assistantReply?: Prisma.MessageUncheckedCreateNestedOneWithoutReplyToMessageInput
   productCards?: Prisma.MessageProductCardUncheckedCreateNestedManyWithoutMessageInput
@@ -399,6 +431,8 @@ export type MessageUpdateInput = {
   retrievalAnchorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
   lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  focusedProductId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  retrievalExhausted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
   replyToMessage?: Prisma.MessageUpdateOneWithoutAssistantReplyNestedInput
@@ -418,6 +452,8 @@ export type MessageUncheckedUpdateInput = {
   retrievalAnchorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
   lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  focusedProductId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  retrievalExhausted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantReply?: Prisma.MessageUncheckedUpdateOneWithoutReplyToMessageNestedInput
   productCards?: Prisma.MessageProductCardUncheckedUpdateManyWithoutMessageNestedInput
@@ -435,6 +471,8 @@ export type MessageCreateManyInput = {
   retrievalAnchorMessage?: string | null
   lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
   lastCategorySlug?: string | null
+  focusedProductId?: number | null
+  retrievalExhausted?: boolean
   createdAt?: Date | string
 }
 
@@ -448,6 +486,8 @@ export type MessageUpdateManyMutationInput = {
   retrievalAnchorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
   lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  focusedProductId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  retrievalExhausted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -463,6 +503,8 @@ export type MessageUncheckedUpdateManyInput = {
   retrievalAnchorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
   lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  focusedProductId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  retrievalExhausted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -511,11 +553,14 @@ export type MessageCountOrderByAggregateInput = {
   retrievalAnchorMessage?: Prisma.SortOrder
   lastSearchTerms?: Prisma.SortOrder
   lastCategorySlug?: Prisma.SortOrder
+  focusedProductId?: Prisma.SortOrder
+  retrievalExhausted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
 export type MessageAvgOrderByAggregateInput = {
   sequence?: Prisma.SortOrder
+  focusedProductId?: Prisma.SortOrder
 }
 
 export type MessageMaxOrderByAggregateInput = {
@@ -529,6 +574,8 @@ export type MessageMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   retrievalAnchorMessage?: Prisma.SortOrder
   lastCategorySlug?: Prisma.SortOrder
+  focusedProductId?: Prisma.SortOrder
+  retrievalExhausted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -543,11 +590,14 @@ export type MessageMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   retrievalAnchorMessage?: Prisma.SortOrder
   lastCategorySlug?: Prisma.SortOrder
+  focusedProductId?: Prisma.SortOrder
+  retrievalExhausted?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
 export type MessageSumOrderByAggregateInput = {
   sequence?: Prisma.SortOrder
+  focusedProductId?: Prisma.SortOrder
 }
 
 export type MessageScalarRelationFilter = {
@@ -644,6 +694,18 @@ export type MessageUpdatelastSearchTermsInput = {
   push?: string | string[]
 }
 
+export type NullableIntFieldUpdateOperationsInput = {
+  set?: number | null
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
+}
+
+export type BoolFieldUpdateOperationsInput = {
+  set?: boolean
+}
+
 export type MessageUpdateOneWithoutAssistantReplyNestedInput = {
   create?: Prisma.XOR<Prisma.MessageCreateWithoutAssistantReplyInput, Prisma.MessageUncheckedCreateWithoutAssistantReplyInput>
   connectOrCreate?: Prisma.MessageCreateOrConnectWithoutAssistantReplyInput
@@ -698,6 +760,8 @@ export type MessageCreateWithoutConversationInput = {
   retrievalAnchorMessage?: string | null
   lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
   lastCategorySlug?: string | null
+  focusedProductId?: number | null
+  retrievalExhausted?: boolean
   createdAt?: Date | string
   replyToMessage?: Prisma.MessageCreateNestedOneWithoutAssistantReplyInput
   assistantReply?: Prisma.MessageCreateNestedOneWithoutReplyToMessageInput
@@ -715,6 +779,8 @@ export type MessageUncheckedCreateWithoutConversationInput = {
   retrievalAnchorMessage?: string | null
   lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
   lastCategorySlug?: string | null
+  focusedProductId?: number | null
+  retrievalExhausted?: boolean
   createdAt?: Date | string
   assistantReply?: Prisma.MessageUncheckedCreateNestedOneWithoutReplyToMessageInput
   productCards?: Prisma.MessageProductCardUncheckedCreateNestedManyWithoutMessageInput
@@ -761,6 +827,8 @@ export type MessageScalarWhereInput = {
   retrievalAnchorMessage?: Prisma.StringNullableFilter<"Message"> | string | null
   lastSearchTerms?: Prisma.StringNullableListFilter<"Message">
   lastCategorySlug?: Prisma.StringNullableFilter<"Message"> | string | null
+  focusedProductId?: Prisma.IntNullableFilter<"Message"> | number | null
+  retrievalExhausted?: Prisma.BoolFilter<"Message"> | boolean
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
 }
 
@@ -774,6 +842,8 @@ export type MessageCreateWithoutAssistantReplyInput = {
   retrievalAnchorMessage?: string | null
   lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
   lastCategorySlug?: string | null
+  focusedProductId?: number | null
+  retrievalExhausted?: boolean
   createdAt?: Date | string
   conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
   replyToMessage?: Prisma.MessageCreateNestedOneWithoutAssistantReplyInput
@@ -792,6 +862,8 @@ export type MessageUncheckedCreateWithoutAssistantReplyInput = {
   retrievalAnchorMessage?: string | null
   lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
   lastCategorySlug?: string | null
+  focusedProductId?: number | null
+  retrievalExhausted?: boolean
   createdAt?: Date | string
   productCards?: Prisma.MessageProductCardUncheckedCreateNestedManyWithoutMessageInput
 }
@@ -811,6 +883,8 @@ export type MessageCreateWithoutReplyToMessageInput = {
   retrievalAnchorMessage?: string | null
   lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
   lastCategorySlug?: string | null
+  focusedProductId?: number | null
+  retrievalExhausted?: boolean
   createdAt?: Date | string
   conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
   assistantReply?: Prisma.MessageCreateNestedOneWithoutReplyToMessageInput
@@ -828,6 +902,8 @@ export type MessageUncheckedCreateWithoutReplyToMessageInput = {
   retrievalAnchorMessage?: string | null
   lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
   lastCategorySlug?: string | null
+  focusedProductId?: number | null
+  retrievalExhausted?: boolean
   createdAt?: Date | string
   assistantReply?: Prisma.MessageUncheckedCreateNestedOneWithoutReplyToMessageInput
   productCards?: Prisma.MessageProductCardUncheckedCreateNestedManyWithoutMessageInput
@@ -859,6 +935,8 @@ export type MessageUpdateWithoutAssistantReplyInput = {
   retrievalAnchorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
   lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  focusedProductId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  retrievalExhausted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
   replyToMessage?: Prisma.MessageUpdateOneWithoutAssistantReplyNestedInput
@@ -877,6 +955,8 @@ export type MessageUncheckedUpdateWithoutAssistantReplyInput = {
   retrievalAnchorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
   lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  focusedProductId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  retrievalExhausted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   productCards?: Prisma.MessageProductCardUncheckedUpdateManyWithoutMessageNestedInput
 }
@@ -902,6 +982,8 @@ export type MessageUpdateWithoutReplyToMessageInput = {
   retrievalAnchorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
   lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  focusedProductId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  retrievalExhausted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
   assistantReply?: Prisma.MessageUpdateOneWithoutReplyToMessageNestedInput
@@ -919,6 +1001,8 @@ export type MessageUncheckedUpdateWithoutReplyToMessageInput = {
   retrievalAnchorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
   lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  focusedProductId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  retrievalExhausted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantReply?: Prisma.MessageUncheckedUpdateOneWithoutReplyToMessageNestedInput
   productCards?: Prisma.MessageProductCardUncheckedUpdateManyWithoutMessageNestedInput
@@ -934,6 +1018,8 @@ export type MessageCreateWithoutProductCardsInput = {
   retrievalAnchorMessage?: string | null
   lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
   lastCategorySlug?: string | null
+  focusedProductId?: number | null
+  retrievalExhausted?: boolean
   createdAt?: Date | string
   conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
   replyToMessage?: Prisma.MessageCreateNestedOneWithoutAssistantReplyInput
@@ -952,6 +1038,8 @@ export type MessageUncheckedCreateWithoutProductCardsInput = {
   retrievalAnchorMessage?: string | null
   lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
   lastCategorySlug?: string | null
+  focusedProductId?: number | null
+  retrievalExhausted?: boolean
   createdAt?: Date | string
   assistantReply?: Prisma.MessageUncheckedCreateNestedOneWithoutReplyToMessageInput
 }
@@ -982,6 +1070,8 @@ export type MessageUpdateWithoutProductCardsInput = {
   retrievalAnchorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
   lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  focusedProductId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  retrievalExhausted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
   replyToMessage?: Prisma.MessageUpdateOneWithoutAssistantReplyNestedInput
@@ -1000,6 +1090,8 @@ export type MessageUncheckedUpdateWithoutProductCardsInput = {
   retrievalAnchorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
   lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  focusedProductId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  retrievalExhausted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantReply?: Prisma.MessageUncheckedUpdateOneWithoutReplyToMessageNestedInput
 }
@@ -1015,6 +1107,8 @@ export type MessageCreateManyConversationInput = {
   retrievalAnchorMessage?: string | null
   lastSearchTerms?: Prisma.MessageCreatelastSearchTermsInput | string[]
   lastCategorySlug?: string | null
+  focusedProductId?: number | null
+  retrievalExhausted?: boolean
   createdAt?: Date | string
 }
 
@@ -1028,6 +1122,8 @@ export type MessageUpdateWithoutConversationInput = {
   retrievalAnchorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
   lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  focusedProductId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  retrievalExhausted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   replyToMessage?: Prisma.MessageUpdateOneWithoutAssistantReplyNestedInput
   assistantReply?: Prisma.MessageUpdateOneWithoutReplyToMessageNestedInput
@@ -1045,6 +1141,8 @@ export type MessageUncheckedUpdateWithoutConversationInput = {
   retrievalAnchorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
   lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  focusedProductId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  retrievalExhausted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   assistantReply?: Prisma.MessageUncheckedUpdateOneWithoutReplyToMessageNestedInput
   productCards?: Prisma.MessageProductCardUncheckedUpdateManyWithoutMessageNestedInput
@@ -1061,6 +1159,8 @@ export type MessageUncheckedUpdateManyWithoutConversationInput = {
   retrievalAnchorMessage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastSearchTerms?: Prisma.MessageUpdatelastSearchTermsInput | string[]
   lastCategorySlug?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  focusedProductId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  retrievalExhausted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -1107,6 +1207,8 @@ export type MessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   retrievalAnchorMessage?: boolean
   lastSearchTerms?: boolean
   lastCategorySlug?: boolean
+  focusedProductId?: boolean
+  retrievalExhausted?: boolean
   createdAt?: boolean
   conversation?: boolean | Prisma.ConversationDefaultArgs<ExtArgs>
   replyToMessage?: boolean | Prisma.Message$replyToMessageArgs<ExtArgs>
@@ -1127,6 +1229,8 @@ export type MessageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   retrievalAnchorMessage?: boolean
   lastSearchTerms?: boolean
   lastCategorySlug?: boolean
+  focusedProductId?: boolean
+  retrievalExhausted?: boolean
   createdAt?: boolean
   conversation?: boolean | Prisma.ConversationDefaultArgs<ExtArgs>
   replyToMessage?: boolean | Prisma.Message$replyToMessageArgs<ExtArgs>
@@ -1144,6 +1248,8 @@ export type MessageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   retrievalAnchorMessage?: boolean
   lastSearchTerms?: boolean
   lastCategorySlug?: boolean
+  focusedProductId?: boolean
+  retrievalExhausted?: boolean
   createdAt?: boolean
   conversation?: boolean | Prisma.ConversationDefaultArgs<ExtArgs>
   replyToMessage?: boolean | Prisma.Message$replyToMessageArgs<ExtArgs>
@@ -1161,10 +1267,12 @@ export type MessageSelectScalar = {
   retrievalAnchorMessage?: boolean
   lastSearchTerms?: boolean
   lastCategorySlug?: boolean
+  focusedProductId?: boolean
+  retrievalExhausted?: boolean
   createdAt?: boolean
 }
 
-export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "conversationId" | "clientRequestId" | "replyToMessageId" | "sequence" | "role" | "content" | "status" | "retrievalAnchorMessage" | "lastSearchTerms" | "lastCategorySlug" | "createdAt", ExtArgs["result"]["message"]>
+export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "conversationId" | "clientRequestId" | "replyToMessageId" | "sequence" | "role" | "content" | "status" | "retrievalAnchorMessage" | "lastSearchTerms" | "lastCategorySlug" | "focusedProductId" | "retrievalExhausted" | "createdAt", ExtArgs["result"]["message"]>
 export type MessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   conversation?: boolean | Prisma.ConversationDefaultArgs<ExtArgs>
   replyToMessage?: boolean | Prisma.Message$replyToMessageArgs<ExtArgs>
@@ -1201,6 +1309,8 @@ export type $MessagePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     retrievalAnchorMessage: string | null
     lastSearchTerms: string[]
     lastCategorySlug: string | null
+    focusedProductId: number | null
+    retrievalExhausted: boolean
     createdAt: Date
   }, ExtArgs["result"]["message"]>
   composites: {}
@@ -1640,6 +1750,8 @@ export interface MessageFieldRefs {
   readonly retrievalAnchorMessage: Prisma.FieldRef<"Message", 'String'>
   readonly lastSearchTerms: Prisma.FieldRef<"Message", 'String[]'>
   readonly lastCategorySlug: Prisma.FieldRef<"Message", 'String'>
+  readonly focusedProductId: Prisma.FieldRef<"Message", 'Int'>
+  readonly retrievalExhausted: Prisma.FieldRef<"Message", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"Message", 'DateTime'>
 }
     

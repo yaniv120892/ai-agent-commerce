@@ -9,7 +9,7 @@
       },
       {
         "scenario": "repeated_show_more_after_exhaustion",
-        "reason": "Known-red: the plan contract has no pagination concept (no offset/exclusion field) and the resolver keeps no already-shown state, so a repeated 'do you have more?' turn re-runs the same retrieval instead of paginating or acknowledging exhaustion. The deterministic fake reproduces the same gap (it re-browses smartphones), so this is reliably red offline. Quarantined pending a pagination/exhaustion feature; the scenario asserts the desired behavior (a non-retrieval clarify that acknowledges there is nothing more to show) so it flips green once that ships."
+        "reason": "Deterministic-fake limitation, not a planner defect. Production now carries an exhaustion signal: CatalogResolver reports poolExhausted, it is persisted as Message.retrievalExhausted and surfaced as ActiveRetrievalContext.continuationExhausted, and the real planner returns a non-retrieval clarify when asked for more after exhaustion, so this is un-quarantined online. DeterministicModelClient does not consult continuationExhausted and re-browses smartphones, so it stays red offline. Kept as an offline-only quarantine (verified online) rather than teaching the fake exhaustion handling."
       },
       {
         "scenario": "category_hallucination_nonexistent",
@@ -21,7 +21,7 @@
       },
       {
         "scenario": "bare_attribute_follow_up_loses_focused_product",
-        "reason": "Known-red (YAN-18): ActiveRetrievalContext has no concept of 'the single product the assistant is currently focused on', only a categorySlug derived from the last assistant turn's product cards. A bare attribute word with no product/category noun ('size') has nothing to resolve against, so DeterministicModelClient.buildSearchOrBrowsePlan falls back to a category-only search (dominant category plus the literal word 'size' as an extra search term), which matches nothing in the fixture catalog and returns zero products instead of keeping product 101 in view. Quarantined pending YAN-18 (extend ActiveRetrievalContext to track a single focused product and have the planner prefer it for bare attribute/adjective follow-ups with no new subject); the scenario asserts the desired product_detail resolution so it flips green once that ships."
+        "reason": "Deterministic-fake limitation, not a planner defect. Production now tracks a focused product: ActiveRetrievalContext carries focusedProductId (set on product_detail turns) and the real planner resolves a bare attribute follow-up ('size') against it, so this is un-quarantined online. DeterministicModelClient.buildSearchOrBrowsePlan does not implement that preference, so offline it still falls back to a category-only search that matches nothing in the fixture catalog. Kept as an offline-only quarantine (verified online) rather than teaching the fake focused-product resolution."
       }
     ]
   },
@@ -32,20 +32,7 @@
       "prompt_injection",
       "unsupported_travel_request"
     ],
-    "expectedFailures": [
-      {
-        "scenario": "repeated_show_more_after_exhaustion",
-        "reason": "Known-red against the real planner: with no pagination or exhaustion signal in the plan contract, a repeated 'do you have more?' turn re-runs the same smartphones retrieval rather than acknowledging there is nothing further to show (observed live: three identical result sets in a row). Quarantined pending a pagination/exhaustion feature; the scenario asserts the desired non-retrieval clarify so it flips green once that ships."
-      },
-      {
-        "scenario": "compare_requires_two_priors",
-        "reason": "Product-reference capability gap: with only one prior product, gpt-5.4-mini attempts a comparison (or emits catalog constraints on a non-retrieval plan) instead of cleanly clarifying, so the resolver rejects the plan. The deterministic fake returns a clean clarify, so this passes offline. Quarantined pending planner-quality work on reference resolution."
-      },
-      {
-        "scenario": "bare_attribute_follow_up_loses_focused_product",
-        "reason": "Known-red (YAN-18) against the real planner: with no focused-product field in ActiveRetrievalContext, gpt-5.4-mini has no signal that a bare 'size' follow-up refers to the previously-discussed single product, reproducing the live incident this issue was filed from (assistant asked a generic clarifying question after the product context was dropped). Quarantined pending YAN-18; the scenario asserts the desired product_detail resolution so it flips green once the fix ships."
-      }
-    ],
+    "expectedFailures": [],
     "maxScenarios": 30,
     "spend": {
       "maxUsd": 1.5,

@@ -94,6 +94,8 @@ export const MessageScalarFieldEnum = {
   retrievalAnchorMessage: 'retrievalAnchorMessage',
   lastSearchTerms: 'lastSearchTerms',
   lastCategorySlug: 'lastCategorySlug',
+  focusedProductId: 'focusedProductId',
+  retrievalExhausted: 'retrievalExhausted',
   createdAt: 'createdAt'
 } as const
 
