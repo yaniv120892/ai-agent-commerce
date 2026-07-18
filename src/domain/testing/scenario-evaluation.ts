@@ -92,6 +92,13 @@ export function createHistory(
   return messages.map((message, index) => ({
     content: message.content,
     createdAt: `2026-07-17T00:00:0${index}.000Z`,
+    // Scenario messages carry no intent, so infer a focused product from an
+    // assistant turn that surfaced exactly one card — the product_detail shape
+    // production records focusedProductId for.
+    focusedProductId:
+      message.role === "assistant" && message.productIds.length === 1
+        ? message.productIds[0]
+        : null,
     id: `scenario-message-${index}`,
     lastCategorySlug: null,
     lastSearchTerms: [],

@@ -80,6 +80,7 @@ async function main(): Promise<void> {
     {
       content: "ma shoes",
       createdAt: new Date().toISOString(),
+      focusedProductId: null,
       id: "verify-user-1",
       lastCategorySlug: null,
       lastSearchTerms: [],
@@ -91,6 +92,7 @@ async function main(): Promise<void> {
     {
       content: "Here are some mens-shoes options.",
       createdAt: new Date().toISOString(),
+      focusedProductId: null,
       id: "verify-assistant-1",
       lastCategorySlug: "mens-shoes",
       lastSearchTerms: [],
