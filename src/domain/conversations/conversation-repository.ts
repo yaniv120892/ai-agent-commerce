@@ -76,6 +76,7 @@ type CompleteAssistantMessageInput = {
   lastSearchTerms: string[];
   lastCategorySlug: string | null;
   focusedProductId: number | null;
+  retrievalExhausted: boolean;
   retrievalAnchorMessage: string | null;
 };
 
@@ -240,6 +241,7 @@ export class ConversationRepository {
           lastCategorySlug: input.lastCategorySlug,
           lastSearchTerms: input.lastSearchTerms,
           retrievalAnchorMessage: input.retrievalAnchorMessage,
+          retrievalExhausted: input.retrievalExhausted,
           status: "complete",
         },
         where: {
@@ -440,6 +442,7 @@ export class ConversationRepository {
       id: message.id,
       lastCategorySlug: message.lastCategorySlug,
       lastSearchTerms: message.lastSearchTerms,
+      retrievalExhausted: message.retrievalExhausted,
       productCards: message.productCards.map((productCard) =>
         this.mapProductCard(productCard),
       ),

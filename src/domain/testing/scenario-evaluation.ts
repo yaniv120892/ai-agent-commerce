@@ -106,6 +106,13 @@ export function createHistory(
       createProductCard(productId, getProduct),
     ),
     retrievalAnchorMessage: null,
+    // Scenarios carry no pool size; an assistant turn that surfaced a non-empty
+    // result under the six-card cap has shown its whole pool, so treat it as
+    // exhausted for continuation follow-ups.
+    retrievalExhausted:
+      message.role === "assistant" &&
+      message.productIds.length > 0 &&
+      message.productIds.length < 6,
     role: message.role,
     status: "complete",
   }));

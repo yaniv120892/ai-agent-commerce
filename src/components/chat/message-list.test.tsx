@@ -19,6 +19,7 @@ it("renders markdown emphasis in assistant replies instead of literal asterisks"
       lastSearchTerms: [],
       productCards: [],
       retrievalAnchorMessage: null,
+      retrievalExhausted: false,
       role: "assistant",
       status: "complete",
     },

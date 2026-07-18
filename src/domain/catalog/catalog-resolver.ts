@@ -38,8 +38,23 @@ export class CatalogResolver {
     );
 
     return {
+      poolExhausted: this.isPoolExhausted(plan, eligibleProducts),
       productCards: productCards.slice(0, 6),
     };
+  }
+
+  // eligibleProducts is the full filtered pool before the six-card cap, so if
+  // it fits within one page this turn shows all of it and there is nothing
+  // further to page. Only meaningful for the pageable list intents.
+  private isPoolExhausted(
+    plan: RetrievalPlan,
+    eligibleProducts: CatalogProduct[],
+  ): boolean {
+    if (plan.intent !== "search" && plan.intent !== "browse_category") {
+      return false;
+    }
+
+    return eligibleProducts.length <= 6;
   }
 
   private async retrieveProducts(
