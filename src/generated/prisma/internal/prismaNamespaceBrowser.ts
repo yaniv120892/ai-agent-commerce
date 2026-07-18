@@ -95,6 +95,7 @@ export const MessageScalarFieldEnum = {
   lastSearchTerms: 'lastSearchTerms',
   lastCategorySlug: 'lastCategorySlug',
   focusedProductId: 'focusedProductId',
+  retrievalExhausted: 'retrievalExhausted',
   createdAt: 'createdAt'
 } as const
 
