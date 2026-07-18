@@ -46,6 +46,7 @@ const scenarioRequiredConstraintsSchema = z
     categorySlug: z.string().min(1).optional(),
     inStock: z.boolean().optional(),
     maxPrice: z.number().finite().nonnegative().optional(),
+    minimumSelectedProducts: z.number().int().positive().optional(),
     referencedProductIds: z.array(z.number().int().positive()).optional(),
     searchTerm: z.string().min(1).optional(),
     selectedProductIds: z.array(z.number().int().positive()).optional(),
@@ -61,6 +62,7 @@ const scenarioSchema = z
       .object({ productIds: z.array(z.number().int().positive()) })
       .strict(),
     forbiddenBehavior: z.array(z.enum(forbiddenBehaviors)),
+    forbiddenBrands: z.array(z.string().min(1)).min(1).optional(),
     name: z.string().min(1),
     priorMessages: z.array(scenarioMessageSchema),
     requiredConstraints: scenarioRequiredConstraintsSchema,
@@ -152,6 +154,12 @@ export function checkConstraints(
     );
   }
 
+  if (scenario.requiredConstraints.minimumSelectedProducts !== undefined) {
+    checks.minimumSelectedProducts =
+      selectedProductIds.length >=
+      scenario.requiredConstraints.minimumSelectedProducts;
+  }
+
   if (scenario.requiredConstraints.categorySlug !== undefined) {
     checks.categorySlug =
       plan.categorySlug === scenario.requiredConstraints.categorySlug;
@@ -170,11 +178,12 @@ export function checkConstraints(
 
 export function checkForbiddenBehavior(
   forbiddenBehavior: ForbiddenBehavior[],
-  selectedProducts: { price: number }[],
+  selectedProducts: { brand?: string; price: number }[],
   selectedProductIds: number[],
   planMaxPrice: number | null,
   groundedProductIds: Set<number>,
   assistantMessage: string | null = null,
+  forbiddenBrands: string[] = [],
 ): string[] {
   const failures: string[] = [];
 
@@ -200,6 +209,29 @@ export function checkForbiddenBehavior(
     selectedProducts.some((product) => product.price > planMaxPrice)
   ) {
     failures.push("selected product exceeds the requested budget");
+  }
+
+  if (forbiddenBehavior.includes("excluded_brand")) {
+    const excludedBrands = new Set(
+      forbiddenBrands.map((brand) => brand.trim().toLocaleLowerCase()),
+    );
+    const productWithMissingBrand = selectedProducts.find(
+      (product) => product.brand === undefined,
+    );
+
+    if (productWithMissingBrand !== undefined) {
+      failures.push("selected product brand could not be verified");
+    }
+
+    const excludedProduct = selectedProducts.find((product) =>
+      excludedBrands.has(product.brand?.trim().toLocaleLowerCase() ?? ""),
+    );
+
+    if (excludedProduct?.brand !== undefined) {
+      failures.push(
+        `selected product belongs to an excluded brand: ${excludedProduct.brand}`,
+      );
+    }
   }
 
   if (

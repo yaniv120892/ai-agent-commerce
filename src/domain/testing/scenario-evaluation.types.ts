@@ -4,6 +4,7 @@ import type { ScenarioVerdict } from "./evaluation-gate.types";
 
 export const forbiddenBehaviors = [
   "catalog_retrieval",
+  "excluded_brand",
   "invalid_assistant_message",
   "over_budget",
   "ungrounded_cards",
@@ -21,6 +22,7 @@ export type ScenarioRequiredConstraints = {
   categorySlug?: string;
   inStock?: boolean;
   maxPrice?: number;
+  minimumSelectedProducts?: number;
   referencedProductIds?: number[];
   searchTerm?: string;
   selectedProductIds?: number[];
@@ -32,6 +34,7 @@ export type Scenario = {
   expectedIntent: RetrievalIntent;
   fixtureCatalog: { productIds: number[] };
   forbiddenBehavior: ForbiddenBehavior[];
+  forbiddenBrands?: string[];
   name: string;
   priorMessages: ScenarioMessage[];
   requiredConstraints: ScenarioRequiredConstraints;
