@@ -78,6 +78,7 @@ async function evaluateScenario(
   scenario: Scenario,
   planRepairService: PlanRepairService,
   catalogResolver: CatalogResolver,
+  catalogClient: CatalogClient,
   allowedCategorySlugs: string[],
 ): Promise<EvaluationCaseResult> {
   const startedAt = performance.now();
@@ -115,6 +116,14 @@ async function evaluateScenario(
     capturedPlan = plan;
     planValid = true;
     selectedProductIds = resolved.productCards.map((card) => card.productId);
+    const selectedProducts =
+      scenario.forbiddenBrands === undefined
+        ? resolved.productCards
+        : await Promise.all(
+            selectedProductIds.map((productId) =>
+              catalogClient.getProduct(productId),
+            ),
+          );
     constraintChecks = checkConstraints(scenario, plan, selectedProductIds);
 
     if (!intentsMatch(scenario.expectedIntent, actualIntent)) {
@@ -132,7 +141,7 @@ async function evaluateScenario(
     failures.push(
       ...checkForbiddenBehavior(
         scenario.forbiddenBehavior,
-        resolved.productCards,
+        selectedProducts,
         selectedProductIds,
         plan.maxPrice,
         // Online has no artificial catalog scope to violate: every card the
@@ -140,6 +149,7 @@ async function evaluateScenario(
         // "grounded" is defined as "the resolver actually returned it".
         new Set(selectedProductIds),
         plan.assistantMessage,
+        scenario.forbiddenBrands,
       ),
     );
   } catch (error) {
@@ -231,6 +241,7 @@ async function main(): Promise<void> {
       scenario,
       planRepairService,
       catalogResolver,
+      catalogClient,
       allowedCategorySlugs,
     );
 

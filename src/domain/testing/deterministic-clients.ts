@@ -19,6 +19,7 @@ function createFixtureImage(label: string, background: string): string {
 export const fixtureCatalog: CatalogProduct[] = [
   {
     availabilityStatus: "In Stock",
+    brand: "Apple",
     category: "smartphones",
     description: "Compact phone with a dependable camera.",
     id: 101,
@@ -31,6 +32,7 @@ export const fixtureCatalog: CatalogProduct[] = [
   },
   {
     availabilityStatus: "In Stock",
+    brand: "Samsung",
     category: "smartphones",
     description: "Phone with a bright display and long battery life.",
     id: 102,
@@ -43,6 +45,7 @@ export const fixtureCatalog: CatalogProduct[] = [
   },
   {
     availabilityStatus: "Low Stock",
+    brand: "Google",
     category: "smartphones",
     description: "Premium phone for demanding mobile work.",
     id: 103,

@@ -119,6 +119,22 @@ describe("checkForbiddenBehavior", () => {
     expect(failures).toContain("selected product exceeds the requested budget");
   });
 
+  it("flags a selected product from an excluded brand", () => {
+    const failures = checkForbiddenBehavior(
+      ["excluded_brand"],
+      [{ brand: "Apple", price: 999 }],
+      [101],
+      null,
+      new Set([101]),
+      null,
+      ["apple"],
+    );
+
+    expect(failures).toContain(
+      "selected product belongs to an excluded brand: Apple",
+    );
+  });
+
   it("flags a product outside the grounded set", () => {
     const failures = checkForbiddenBehavior(
       ["ungrounded_cards"],

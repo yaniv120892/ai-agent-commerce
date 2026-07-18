@@ -10,6 +10,7 @@ const productSchema = z.object({
   id: z.number().int().positive(),
   title: z.string(),
   description: z.string(),
+  brand: z.string().min(1).optional(),
   category: z.string(),
   price: z.number().nonnegative(),
   rating: z.number().nonnegative(),

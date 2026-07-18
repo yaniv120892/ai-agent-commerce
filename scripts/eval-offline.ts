@@ -102,6 +102,7 @@ async function evaluateScenario(
         plan.maxPrice,
         new Set(products.map((product) => product.id)),
         plan.assistantMessage,
+        scenario.forbiddenBrands,
       ),
     );
   } catch (error) {

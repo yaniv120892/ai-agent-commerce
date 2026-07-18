@@ -376,5 +376,15 @@
     "expectedIntent": "search",
     "requiredConstraints": { "searchTerm": "phone" },
     "forbiddenBehavior": ["ungrounded_cards"]
+  },
+  {
+    "name": "exclude_apple_products",
+    "priorMessages": [],
+    "currentInput": "Show me smartphones that are not Apple",
+    "fixtureCatalog": { "productIds": [101, 102, 103] },
+    "expectedIntent": "search",
+    "requiredConstraints": { "minimumSelectedProducts": 1 },
+    "forbiddenBehavior": ["excluded_brand", "ungrounded_cards"],
+    "forbiddenBrands": ["Apple"]
   }
 ]
