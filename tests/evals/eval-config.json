@@ -38,10 +38,6 @@
         "reason": "Known-red against the real planner: with no pagination or exhaustion signal in the plan contract, a repeated 'do you have more?' turn re-runs the same smartphones retrieval rather than acknowledging there is nothing further to show (observed live: three identical result sets in a row). Quarantined pending a pagination/exhaustion feature; the scenario asserts the desired non-retrieval clarify so it flips green once that ships."
       },
       {
-        "scenario": "compare_requires_two_priors",
-        "reason": "Product-reference capability gap: with only one prior product, gpt-5.4-mini attempts a comparison (or emits catalog constraints on a non-retrieval plan) instead of cleanly clarifying, so the resolver rejects the plan. The deterministic fake returns a clean clarify, so this passes offline. Quarantined pending planner-quality work on reference resolution."
-      },
-      {
         "scenario": "bare_attribute_follow_up_loses_focused_product",
         "reason": "Known-red (YAN-18) against the real planner: with no focused-product field in ActiveRetrievalContext, gpt-5.4-mini has no signal that a bare 'size' follow-up refers to the previously-discussed single product, reproducing the live incident this issue was filed from (assistant asked a generic clarifying question after the product context was dropped). Quarantined pending YAN-18; the scenario asserts the desired product_detail resolution so it flips green once the fix ships."
       }
