@@ -42,14 +42,6 @@
         "reason": "Product-reference capability gap: with only one prior product, gpt-5.4-mini attempts a comparison (or emits catalog constraints on a non-retrieval plan) instead of cleanly clarifying, so the resolver rejects the plan. The deterministic fake returns a clean clarify, so this passes offline. Quarantined pending planner-quality work on reference resolution."
       },
       {
-        "scenario": "compare_three_products",
-        "reason": "Schema-boundary capability gap: asked to compare three products, gpt-5.4-mini emits a referencedProductIds array of length 3, which the schema caps at 2 ('Retrieval plan has invalid fields'); the one-shot repair does not trim it to two. The deterministic fake always slices to the first two prior IDs regardless of wording, so this passes offline. Quarantined pending planner-quality work on schema-boundary repair."
-      },
-      {
-        "scenario": "rating_above_max_clamped",
-        "reason": "Schema-boundary capability gap: asked for phones 'rated above 6 stars', gpt-5.4-mini emits minRating above the schema's max of 5 ('Retrieval plan has invalid fields'); the one-shot repair does not clamp or drop it. DeterministicModelClient never sets minRating at all, so this passes offline trivially. Quarantined pending planner-quality work on schema-boundary repair."
-      },
-      {
         "scenario": "bare_attribute_follow_up_loses_focused_product",
         "reason": "Known-red (YAN-18) against the real planner: with no focused-product field in ActiveRetrievalContext, gpt-5.4-mini has no signal that a bare 'size' follow-up refers to the previously-discussed single product, reproducing the live incident this issue was filed from (assistant asked a generic clarifying question after the product context was dropped). Quarantined pending YAN-18; the scenario asserts the desired product_detail resolution so it flips green once the fix ships."
       }
