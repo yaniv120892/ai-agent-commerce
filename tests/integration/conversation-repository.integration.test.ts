@@ -71,6 +71,7 @@ describe("ConversationRepository", () => {
       lastSearchTerms: ["desk", "chair"],
       messageId: assistantMessage.id,
       retrievalAnchorMessage: "I need a desk chair.",
+      retrievalExhausted: true,
       productCards: [
         {
           category: "furniture",
@@ -125,6 +126,7 @@ describe("ConversationRepository", () => {
       focusedProductId: 10,
       lastCategorySlug: "furniture",
       lastSearchTerms: ["desk", "chair"],
+      retrievalExhausted: true,
     });
   });
 
