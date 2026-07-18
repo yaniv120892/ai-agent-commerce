@@ -75,6 +75,7 @@ function createLocalUserMessage(
   return {
     content,
     createdAt: new Date().toISOString(),
+    focusedProductId: null,
     id: requestId,
     lastCategorySlug: null,
     lastSearchTerms: [],
@@ -89,6 +90,7 @@ function createPendingAssistantMessage(requestId: string): PersistedMessage {
   return {
     content: "",
     createdAt: new Date().toISOString(),
+    focusedProductId: null,
     id: `${requestId}-pending`,
     lastCategorySlug: null,
     lastSearchTerms: [],

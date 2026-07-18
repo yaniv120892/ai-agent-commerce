@@ -66,6 +66,7 @@ describe("ConversationRepository", () => {
     await repository.completeAssistantMessage({
       content: "These two chairs fit your request.",
       conversationId: conversation.id,
+      focusedProductId: 10,
       lastCategorySlug: "furniture",
       lastSearchTerms: ["desk", "chair"],
       messageId: assistantMessage.id,
@@ -121,6 +122,7 @@ describe("ConversationRepository", () => {
       },
     ]);
     expect(resumedConversation?.messages[1]).toMatchObject({
+      focusedProductId: 10,
       lastCategorySlug: "furniture",
       lastSearchTerms: ["desk", "chair"],
     });
