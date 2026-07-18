@@ -13,6 +13,7 @@ export type LastAttemptedSearch = {
 
 export type ActiveRetrievalContext = {
   categorySlug: string | null;
+  focusedProductId: number | null;
   lastAttemptedSearch: LastAttemptedSearch | null;
   lastResolvedUserMessage: string | null;
 };
@@ -20,6 +21,7 @@ export type ActiveRetrievalContext = {
 export type CompletedRetrievalSummary = {
   searchTerms: string[];
   categorySlug: string | null;
+  focusedProductId: number | null;
 };
 
 export type PlanRepairContext = {
