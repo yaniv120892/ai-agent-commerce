@@ -9,7 +9,7 @@
       },
       {
         "scenario": "repeated_show_more_after_exhaustion",
-        "reason": "Known-red: the plan contract has no pagination concept (no offset/exclusion field) and the resolver keeps no already-shown state, so a repeated 'do you have more?' turn re-runs the same retrieval instead of paginating or acknowledging exhaustion. The deterministic fake reproduces the same gap (it re-browses smartphones), so this is reliably red offline. Quarantined pending a pagination/exhaustion feature; the scenario asserts the desired behavior (a non-retrieval clarify that acknowledges there is nothing more to show) so it flips green once that ships."
+        "reason": "Deterministic-fake limitation, not a planner defect. Production now carries an exhaustion signal: CatalogResolver reports poolExhausted, it is persisted as Message.retrievalExhausted and surfaced as ActiveRetrievalContext.continuationExhausted, and the real planner returns a non-retrieval clarify when asked for more after exhaustion, so this is un-quarantined online. DeterministicModelClient does not consult continuationExhausted and re-browses smartphones, so it stays red offline. Kept as an offline-only quarantine (verified online) rather than teaching the fake exhaustion handling."
       },
       {
         "scenario": "category_hallucination_nonexistent",
@@ -32,12 +32,7 @@
       "prompt_injection",
       "unsupported_travel_request"
     ],
-    "expectedFailures": [
-      {
-        "scenario": "repeated_show_more_after_exhaustion",
-        "reason": "Known-red against the real planner: with no pagination or exhaustion signal in the plan contract, a repeated 'do you have more?' turn re-runs the same smartphones retrieval rather than acknowledging there is nothing further to show (observed live: three identical result sets in a row). Quarantined pending a pagination/exhaustion feature; the scenario asserts the desired non-retrieval clarify so it flips green once that ships."
-      }
-    ],
+    "expectedFailures": [],
     "maxScenarios": 30,
     "spend": {
       "maxUsd": 1.5,
