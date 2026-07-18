@@ -81,6 +81,7 @@ function createLocalUserMessage(
     lastSearchTerms: [],
     productCards: [],
     retrievalAnchorMessage: null,
+    retrievalExhausted: false,
     role: "user",
     status: "complete",
   };
@@ -96,6 +97,7 @@ function createPendingAssistantMessage(requestId: string): PersistedMessage {
     lastSearchTerms: [],
     productCards: [],
     retrievalAnchorMessage: null,
+    retrievalExhausted: false,
     role: "assistant",
     status: "pending",
   };

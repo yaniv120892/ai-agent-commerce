@@ -13,6 +13,7 @@ const sampleCompletion: ReplyCompletion = {
   retrievalSummary: {
     categorySlug: null,
     focusedProductId: null,
+    retrievalExhausted: false,
     searchTerms: ["phone"],
   },
 };

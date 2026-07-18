@@ -28,6 +28,7 @@ export function deriveActiveContext(
   if (lastAssistantMessage.productCards.length > 0) {
     return {
       categorySlug: deriveDominantCategory(lastAssistantMessage.productCards),
+      continuationExhausted: lastAssistantMessage.retrievalExhausted,
       focusedProductId: lastAssistantMessage.focusedProductId,
       lastAttemptedSearch: null,
       lastResolvedUserMessage,
@@ -44,6 +45,7 @@ export function deriveActiveContext(
 
   return {
     categorySlug: null,
+    continuationExhausted: false,
     focusedProductId: lastAssistantMessage.focusedProductId,
     lastAttemptedSearch: attemptedSearch
       ? {

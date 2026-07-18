@@ -13,6 +13,7 @@ const assistantMessage = {
   lastSearchTerms: [],
   productCards: [],
   retrievalAnchorMessage: null,
+  retrievalExhausted: false,
   role: "assistant" as const,
   status: "failed" as const,
 };

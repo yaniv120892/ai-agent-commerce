@@ -268,6 +268,23 @@ describe("CatalogResolver", () => {
     const result = await resolver.resolve(createPlan(), allowedCategorySlugs);
 
     expect(result.productCards).toHaveLength(6);
+    expect(result.poolExhausted).toBe(false);
+  });
+
+  it("reports poolExhausted when a search shows its entire pool within one page", async () => {
+    const catalogClient = createCatalogClient();
+    catalogClient.searchProducts.mockResolvedValue(
+      Array.from({ length: 4 }, (_, index) => ({
+        ...catalogProducts[0],
+        id: index + 1,
+      })),
+    );
+    const resolver = new CatalogResolver(catalogClient);
+
+    const result = await resolver.resolve(createPlan(), allowedCategorySlugs);
+
+    expect(result.productCards).toHaveLength(4);
+    expect(result.poolExhausted).toBe(true);
   });
 
   it("does not exclude prior product IDs when isContinuation is false", async () => {
@@ -304,6 +321,7 @@ describe("CatalogResolver", () => {
     expect(result.productCards.map((product) => product.productId)).toEqual([
       7, 8, 9,
     ]);
+    expect(result.poolExhausted).toBe(true);
   });
 
   it("returns an empty result rather than throwing when a continuation has already shown every candidate", async () => {

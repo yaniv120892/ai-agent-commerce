@@ -21,6 +21,7 @@ export type PersistedMessage = {
   lastSearchTerms: string[];
   lastCategorySlug: string | null;
   focusedProductId: number | null;
+  retrievalExhausted: boolean;
   retrievalAnchorMessage: string | null;
 };
 

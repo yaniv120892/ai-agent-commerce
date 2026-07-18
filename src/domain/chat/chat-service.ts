@@ -294,12 +294,18 @@ export class ChatService {
         assistantMessage,
         plan.assistantMessage,
         [],
-        { categorySlug: null, focusedProductId: null, searchTerms: [] },
+        {
+          categorySlug: null,
+          focusedProductId: null,
+          retrievalExhausted: false,
+          searchTerms: [],
+        },
         null,
       );
     }
 
     let productCards: ProductCardSnapshot[];
+    let poolExhausted = false;
 
     try {
       const result = await this.catalogResolver.resolve(
@@ -308,6 +314,7 @@ export class ChatService {
         messageContext.priorProductIds,
       );
       productCards = result.productCards;
+      poolExhausted = result.poolExhausted;
     } catch (error) {
       if (this.isInvalidRetrievalPlanError(error)) {
         return this.failWithInvalidRetrievalPlan(
@@ -349,6 +356,7 @@ export class ChatService {
       {
         categorySlug: plan.categorySlug,
         focusedProductId: this.computeFocusedProductId(plan),
+        retrievalExhausted: poolExhausted,
         searchTerms: plan.searchTerms,
       },
       this.computeRetrievalAnchorMessage(plan, userMessage, messageContext),
@@ -429,6 +437,7 @@ export class ChatService {
           messageId: assistantMessage.id,
           productCards,
           retrievalAnchorMessage,
+          retrievalExhausted: retrievalSummary.retrievalExhausted,
         });
       await this.replyCompletionCache.delete(
         conversationId,
