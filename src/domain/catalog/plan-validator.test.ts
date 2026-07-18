@@ -181,7 +181,55 @@ describe("PlanValidator", () => {
 
   it("rejects a plan whose fields fail the schema", () => {
     expect(() =>
-      createValidator().validate(createPlan({ minRating: 9 }), []),
+      createValidator().validate(createPlan({ maxPrice: -1 }), []),
+    ).toThrowError(expect.objectContaining({ code: "INVALID_RETRIEVAL_PLAN" }));
+  });
+
+  it("clamps a minRating above the 0-5 scale instead of rejecting", () => {
+    const validatedPlan = createValidator().validate(
+      createPlan({ minRating: 6 }),
+      [],
+    );
+
+    expect(validatedPlan).toMatchObject({ minRating: 5, validated: true });
+  });
+
+  it("clamps a negative minRating up to zero", () => {
+    const validatedPlan = createValidator().validate(
+      createPlan({ minRating: -1 }),
+      [],
+    );
+
+    expect(validatedPlan).toMatchObject({ minRating: 0, validated: true });
+  });
+
+  it("trims a comparison plan with more than two references to the first two", () => {
+    const validatedPlan = createValidator().validate(
+      createPlan({
+        intent: "compare",
+        referencedProductIds: [101, 102, 103],
+        searchTerms: [],
+      }),
+      [101, 102, 103],
+    );
+
+    expect(validatedPlan).toMatchObject({
+      intent: "compare",
+      referencedProductIds: [101, 102],
+      validated: true,
+    });
+  });
+
+  it("still rejects a trimmed comparison whose two references are the same product", () => {
+    expect(() =>
+      createValidator().validate(
+        createPlan({
+          intent: "compare",
+          referencedProductIds: [101, 101, 102],
+          searchTerms: [],
+        }),
+        [101, 102],
+      ),
     ).toThrowError(expect.objectContaining({ code: "INVALID_RETRIEVAL_PLAN" }));
   });
 

@@ -39,7 +39,7 @@ export class PlanValidator {
     plan: RetrievalPlan,
     priorProductIds: number[],
   ): ValidatedRetrievalPlan {
-    const parsedPlan = retrievalPlanSchema.safeParse(plan);
+    const parsedPlan = retrievalPlanSchema.safeParse(this.normalizePlan(plan));
 
     if (!parsedPlan.success) {
       throw new CatalogError(
@@ -55,6 +55,32 @@ export class PlanValidator {
     this.validateReferencedProductIds(validatedPlan, priorProductIds);
 
     return { ...validatedPlan, validated: true };
+  }
+
+  // Narrowly repairs the two out-of-range fields the live planner emits most
+  // often (a minRating above the 0-5 scale, a compare carrying more than two
+  // references) so they pass on the first attempt instead of burning the
+  // one-shot repair. Deliberately minimal: it only clamps/trims these two
+  // fields and never touches intent, category, or the reference allowlist, so
+  // it cannot mask an otherwise-invalid plan — every rule below still runs.
+  private normalizePlan(plan: RetrievalPlan): RetrievalPlan {
+    return {
+      ...plan,
+      minRating:
+        plan.minRating === null ? null : this.clampRating(plan.minRating),
+      referencedProductIds:
+        plan.intent === "compare"
+          ? plan.referencedProductIds.slice(0, 2)
+          : plan.referencedProductIds,
+    };
+  }
+
+  private clampRating(minRating: number): number {
+    if (!Number.isFinite(minRating)) {
+      return minRating;
+    }
+
+    return Math.min(5, Math.max(0, minRating));
   }
 
   private validateIntentFields(plan: RetrievalPlan): void {
