@@ -30,6 +30,7 @@ model Message {
   retrievalAnchorMessage String?              @map("retrieval_anchor_message")
   lastSearchTerms        String[]             @default([]) @map("last_search_terms")
   lastCategorySlug       String?              @map("last_category_slug")
+  focusedProductId       Int?                 @map("focused_product_id")
   createdAt              DateTime             @default(now()) @map("created_at")
   conversation           Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   replyToMessage         Message?             @relation("MessageReply", fields: [replyToMessageId], references: [id], onDelete: Cascade)
